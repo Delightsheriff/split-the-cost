@@ -7,8 +7,8 @@ const welcome = () => {
   return (
     <SafeAreaView className="flex-1">
       <View className="flex-1 justify-center items-center bg-gray-200">
-        <View className="bg-red-700 p-4 flex items-center justify-center ">
-          <Text className="text-xl text-center font-bold text-blue-500">
+        <View className="p-4 flex items-center justify-center ">
+          <Text className="text-xl text-center font-bold text-blue-500 font-manrope">
             Welcome to Nativewind!
           </Text>
         </View>
