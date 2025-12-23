@@ -14,6 +14,12 @@ module.exports = {
         manrope: "Manrope-Regular",
         manropeBold: "Manrope-Bold",
       },
+      colors: {
+        primary: "#13ec5b",
+        "background-light": "#f6f8f6",
+        "background-dark": "#102216",
+        "surface-dark": "#1c2e22",
+      },
     },
   },
   plugins: [],
