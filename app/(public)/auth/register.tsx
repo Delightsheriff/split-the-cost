@@ -1,14 +1,15 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const register = () => {
   return (
-    <View>
-      <Text>register</Text>
-    </View>
+    <SafeAreaView className="flex-1">
+      <View>
+        <Text>register</Text>
+      </View>
+    </SafeAreaView>
   );
 };
 
 export default register;
-
-const styles = StyleSheet.create({});
