@@ -18,6 +18,9 @@ const Register = () => {
   function handleGOBack() {
     router.back();
   }
+  function handleSignIn() {
+    router.push("/(public)/auth/login");
+  }
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
@@ -120,7 +123,7 @@ const Register = () => {
                   </Text>
                 </Pressable>
 
-                <Pressable className="items-center mt-4">
+                <Pressable className="items-center mt-4" onPress={handleSignIn}>
                   <Text className="text-background-light font-manrope text-base">
                     Already have an account?{" "}
                     <Text className="text-primary font-manropeBold font-bold">
