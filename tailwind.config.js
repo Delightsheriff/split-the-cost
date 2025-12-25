@@ -19,6 +19,7 @@ module.exports = {
         "background-light": "#f6f8f6",
         "background-dark": "#102216",
         "surface-dark": "#1c2e22",
+        "assets-dark": "#9db9a6",
       },
     },
   },
