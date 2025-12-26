@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import onboardingData from "./data";
+import onboardingData from "../../../src/services/data";
 
 const Onboarding = () => {
   const router = useRouter();
