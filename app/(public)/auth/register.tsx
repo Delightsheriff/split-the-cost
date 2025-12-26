@@ -1,7 +1,11 @@
+import { RegisterForm, registerSchema } from "@/src/types/schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Lock, Mail, User } from "lucide-react-native";
-import React from "react";
+import { ArrowLeft, Eye, EyeOff, Mail, User } from "lucide-react-native";
+import React, { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,10 +18,33 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const Register = () => {
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const onSubmit = async (data: RegisterForm) => {
+    setIsSubmitting(true);
+    try {
+      console.log(data);
+      // TODO: Add your API call here
+      // await registerUser(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   function handleGOBack() {
     router.back();
   }
+
   function handleSignIn() {
     router.push("/(public)/auth/login");
   }
@@ -38,7 +65,11 @@ const Register = () => {
           <View className="flex-1 p-6">
             {/* Top bar */}
             <View className="flex-row items-center justify-between mt-4">
-              <Pressable onPress={handleGOBack} className="px-2 py-1">
+              <Pressable
+                onPress={handleGOBack}
+                className="px-2 py-1"
+                disabled={isSubmitting}
+              >
                 <View className="w-10 h-10 rounded-full items-center justify-center">
                   <ArrowLeft size={24} color="#f6f8f6" />
                 </View>
@@ -46,7 +77,7 @@ const Register = () => {
             </View>
 
             {/* Content */}
-            <View className="px-2 mt-4 flex-1">
+            <View className="px-2 mt-4">
               {/* Text Heading */}
               <View className="mt-2">
                 <Text className="text-white tracking-tight text-[32px] font-extrabold leading-tight text-left mb-3 font-manropeBold">
@@ -59,22 +90,37 @@ const Register = () => {
               </View>
 
               {/* FORM */}
-              <View className="mt-10 flex-1">
+              <View className="mt-10">
                 {/* Full Name */}
                 <View className="mb-4">
                   <Text className="text-white text-lg font-semibold font-manropeBold leading-normal pb-2 ml-1">
                     Full Name
                   </Text>
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="Enter your Full Name"
-                      placeholderTextColor="#9db9a6"
-                      autoCapitalize="words"
-                      returnKeyType="next"
-                    />
-                    <User size={20} color="#9db9a6" />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="name"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
+                        <TextInput
+                          className="flex-1 text-white h-14 text-base font-manrope"
+                          placeholder="Enter your Full Name"
+                          placeholderTextColor="#9db9a6"
+                          autoCapitalize="words"
+                          returnKeyType="next"
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                          editable={!isSubmitting}
+                        />
+                        <User size={20} color="#9db9a6" />
+                      </View>
+                    )}
+                  />
+                  {errors.name && (
+                    <Text className="text-red-500 text-sm mt-1 ml-1">
+                      {errors.name.message}
+                    </Text>
+                  )}
                 </View>
 
                 {/* Email */}
@@ -82,18 +128,33 @@ const Register = () => {
                   <Text className="text-white text-lg font-semibold font-manropeBold leading-normal pb-2 ml-1">
                     Email
                   </Text>
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9db9a6"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      returnKeyType="next"
-                    />
-                    <Mail size={20} color="#9db9a6" />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="email"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
+                        <TextInput
+                          className="flex-1 text-white h-14 text-base font-manrope"
+                          placeholder="Enter your email"
+                          placeholderTextColor="#9db9a6"
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoComplete="email"
+                          returnKeyType="next"
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                          editable={!isSubmitting}
+                        />
+                        <Mail size={20} color="#9db9a6" />
+                      </View>
+                    )}
+                  />
+                  {errors.email && (
+                    <Text className="text-red-500 text-sm mt-1 ml-1">
+                      {errors.email.message}
+                    </Text>
+                  )}
                 </View>
 
                 {/* Password */}
@@ -101,36 +162,75 @@ const Register = () => {
                   <Text className="text-white text-lg font-semibold font-manropeBold leading-normal pb-2 ml-1">
                     Password
                   </Text>
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="Enter your password"
-                      placeholderTextColor="#9db9a6"
-                      secureTextEntry
-                      autoComplete="password-new"
-                      returnKeyType="done"
-                    />
-                    <Lock size={20} color="#9db9a6" />
-                  </View>
-                </View>
-              </View>
-
-              {/* Submit Button - Pushed to bottom */}
-              <View className="w-full pb-4">
-                <Pressable className="bg-primary py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30">
-                  <Text className="text-background-dark font-manropeBold text-lg font-bold">
-                    Create Account
-                  </Text>
-                </Pressable>
-
-                <Pressable className="items-center mt-4" onPress={handleSignIn}>
-                  <Text className="text-background-light font-manrope text-base">
-                    Already have an account?{" "}
-                    <Text className="text-primary font-manropeBold font-bold">
-                      Log In
+                  <Controller
+                    control={control}
+                    name="password"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
+                        <TextInput
+                          className="flex-1 text-white h-14 text-base font-manrope"
+                          placeholder="Enter your password"
+                          placeholderTextColor="#9db9a6"
+                          secureTextEntry={!showPassword}
+                          autoComplete="password-new"
+                          returnKeyType="done"
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                          editable={!isSubmitting}
+                        />
+                        <Pressable
+                          onPress={() => setShowPassword(!showPassword)}
+                          hitSlop={8}
+                          disabled={isSubmitting}
+                        >
+                          {showPassword ? (
+                            <EyeOff size={20} color="#9db9a6" />
+                          ) : (
+                            <Eye size={20} color="#9db9a6" />
+                          )}
+                        </Pressable>
+                      </View>
+                    )}
+                  />
+                  {errors.password && (
+                    <Text className="text-red-500 text-sm mt-1 ml-1">
+                      {errors.password.message}
                     </Text>
-                  </Text>
-                </Pressable>
+                  )}
+                </View>
+
+                {/* Submit Button */}
+                <View className="w-full mt-6">
+                  <Pressable
+                    onPress={handleSubmit(onSubmit)}
+                    className={`py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30 ${
+                      isSubmitting ? "bg-primary/50" : "bg-primary"
+                    }`}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color="#0d1a0f" />
+                    ) : (
+                      <Text className="text-background-dark font-manropeBold text-lg font-bold">
+                        Create Account
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    className="items-center mt-4"
+                    onPress={handleSignIn}
+                    disabled={isSubmitting}
+                  >
+                    <Text className="text-background-light font-manrope text-base">
+                      Already have an account?{" "}
+                      <Text className="text-primary font-manropeBold font-bold">
+                        Log In
+                      </Text>
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           </View>
