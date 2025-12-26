@@ -1,6 +1,9 @@
+import { LoginForm, loginSchema } from "@/src/types/schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Lock, Mail, Wallet } from "lucide-react-native";
-import React from "react";
+import { ArrowLeft, Eye, EyeOff, Mail, Wallet } from "lucide-react-native";
+import React, { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +17,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const Login = () => {
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = (data: LoginForm) => {
+    console.log(data);
+  };
 
   function handleGoBack() {
     router.back();
@@ -41,7 +56,6 @@ const Login = () => {
           showsVerticalScrollIndicator={false}
         >
           <View className="flex-1 p-6">
-            {/* Top bar */}
             <View className="flex-row items-center justify-between mt-4">
               <Pressable onPress={handleGoBack} className="px-2 py-1">
                 <View className="w-10 h-10 rounded-full items-center justify-center">
@@ -56,9 +70,7 @@ const Login = () => {
               </View>
             </View>
 
-            {/* Content */}
             <View className="px-2 mt-4 flex-1">
-              {/* Text Heading */}
               <View className="mt-2">
                 <Text className="text-white tracking-tight text-[32px] font-extrabold leading-tight text-center mb-3 font-manropeBold">
                   Welcome back.
@@ -68,25 +80,38 @@ const Login = () => {
                 </Text>
               </View>
 
-              {/* FORM */}
               <View className="mt-10 flex-1">
                 {/* Email */}
                 <View className="mb-4">
                   <Text className="text-white text-lg font-semibold font-manropeBold leading-normal pb-2 ml-1">
                     Email
                   </Text>
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9db9a6"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      returnKeyType="next"
-                    />
-                    <Mail size={20} color="#9db9a6" />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="email"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
+                        <TextInput
+                          className="flex-1 text-white h-14 text-base font-manrope"
+                          placeholder="Enter your email"
+                          placeholderTextColor="#9db9a6"
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoComplete="email"
+                          returnKeyType="next"
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                        />
+                        <Mail size={20} color="#9db9a6" />
+                      </View>
+                    )}
+                  />
+                  {errors.email && (
+                    <Text className="text-red-500 text-sm mt-1 ml-1">
+                      {errors.email.message}
+                    </Text>
+                  )}
                 </View>
 
                 {/* Password */}
@@ -94,20 +119,43 @@ const Login = () => {
                   <Text className="text-white text-lg font-semibold font-manropeBold leading-normal pb-2 ml-1">
                     Password
                   </Text>
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="Enter your password"
-                      placeholderTextColor="#9db9a6"
-                      secureTextEntry
-                      autoComplete="password"
-                      returnKeyType="done"
-                    />
-                    <Lock size={20} color="#9db9a6" />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="password"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
+                        <TextInput
+                          className="flex-1 text-white h-14 text-base font-manrope"
+                          placeholder="Enter your password"
+                          placeholderTextColor="#9db9a6"
+                          secureTextEntry={!showPassword}
+                          autoComplete="password"
+                          returnKeyType="done"
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                        />
+                        <Pressable
+                          onPress={() => setShowPassword(!showPassword)}
+                          hitSlop={8}
+                        >
+                          {showPassword ? (
+                            <EyeOff size={20} color="#9db9a6" />
+                          ) : (
+                            <Eye size={20} color="#9db9a6" />
+                          )}
+                        </Pressable>
+                      </View>
+                    )}
+                  />
+
+                  {errors.password && (
+                    <Text className="text-red-500 text-sm mt-1 ml-1">
+                      {errors.password.message}
+                    </Text>
+                  )}
                 </View>
 
-                {/* Forgot Password */}
                 <Pressable
                   onPress={handleForgotPassword}
                   className="items-end px-1 py-2"
@@ -118,9 +166,11 @@ const Login = () => {
                 </Pressable>
               </View>
 
-              {/* Submit Button - Pushed to bottom */}
               <View className="w-full pb-4">
-                <Pressable className="bg-primary py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30">
+                <Pressable
+                  onPress={handleSubmit(onSubmit)}
+                  className="bg-primary py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30"
+                >
                   <Text className="text-background-dark font-manropeBold text-lg font-bold">
                     Log In
                   </Text>
