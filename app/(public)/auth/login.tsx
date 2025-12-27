@@ -34,7 +34,7 @@ const Login = () => {
       console.log(data);
       // TODO: Add your API call here
       // await loginUser(data);
-      router.replace("/(app)/index");
+      router.replace("/(app)/(tabs)");
     } catch (error) {
       console.error(error);
     } finally {

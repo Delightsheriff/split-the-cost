@@ -28,19 +28,9 @@ export default function RootLayout() {
   }
   return (
     <>
-      <Stack>
-        <Stack.Screen
-          name="(app)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(public)"
-          options={{
-            headerShown: false,
-          }}
-        />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="(public)" />
       </Stack>
       <StatusBar barStyle="default" />
     </>

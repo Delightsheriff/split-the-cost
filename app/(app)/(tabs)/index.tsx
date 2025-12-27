@@ -1,12 +1,19 @@
 import EmptyState from "@/src/components/ui/EmptyState";
 import GroupCard from "@/src/components/ui/GroupCard";
 import { DUMMY_GROUPS } from "@/src/services/data";
+import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
 import React, { useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 
 const Index = () => {
   const [pressed, setPressed] = useState(false);
+  const router = useRouter();
+
+  const handleCreateGroup = () => {
+    router.push("/(app)/group/create");
+  };
+
   return (
     <View className="flex-1 bg-background-dark">
       <View className="flex-1 px-6  ">
@@ -37,7 +44,7 @@ const Index = () => {
         />
         {/* Create Group Button */}
         <Pressable
-          onPress={() => console.log("Create group")}
+          onPress={handleCreateGroup}
           onPressIn={() => setPressed(true)}
           onPressOut={() => setPressed(false)}
           className="absolute bottom-6 right-6 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/50"
