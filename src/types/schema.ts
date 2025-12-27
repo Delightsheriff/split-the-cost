@@ -19,7 +19,7 @@ export const groupSchema = z.object({
   name: z.string().min(2, "Group name must be at least 2 characters"),
   members: z
     .array(z.string().email("Invalid email"))
-    .min(1, "Add at least one member"),
+    .min(2, "Add at least two members"),
 });
 
 export type GroupForm = z.infer<typeof groupSchema>;
