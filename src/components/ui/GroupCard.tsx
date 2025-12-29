@@ -22,7 +22,6 @@ const GroupCard = ({ group, onPress }: GroupCardProps) => {
     ? "flex items-center gap-1 rounded-full bg-[#13ec5b]/10 px-3 py-1"
     : "flex items-center gap-1 rounded-full  px-3 py-1 bg-red-500/10";
 
-  // group relative flex cursor-pointer flex-col gap-4 rounded-2xl bg-surface-light p-5 shadow-subtle transition-transform active:scale-[0.98] dark:bg-surface-dark dark:shadow-none border border-transparent dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10
   return (
     <Pressable
       onPress={onPress}

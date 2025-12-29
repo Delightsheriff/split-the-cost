@@ -35,7 +35,8 @@ const Index = () => {
           renderItem={({ item }) => (
             <GroupCard
               group={item}
-              onPress={() => console.log("Pressed", item.name)}
+              // onPress={() => router.push(`/(app)/group/[id]`, { id: item.id })}
+              onPress={() => router.push(`/(app)/group/${item.id}` as any)}
             />
           )}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}

@@ -21,6 +21,24 @@ export default function AppStackLayout() {
           headerBackTitle: "Back",
         }}
       />
+      <Stack.Screen
+        name="group/[id]"
+        options={{
+          title: "Group Details", // Default title
+          headerShown: true,
+          presentation: "card", // Standard slide-in from right
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
+        name="expense/create"
+        options={{
+          title: "Add Expense",
+          headerShown: true,
+          presentation: "modal", // Modal presentation
+          headerBackTitle: "Back",
+        }}
+      />
     </Stack>
   );
 }

@@ -44,6 +44,8 @@ export const DUMMY_GROUPS: Group[] = [
     name: "Apartment 4B",
     category: "RENT & UTILITIES",
     balance: 45.0,
+    createdBy: "usr_2",
+    lastActivity: "2024-05-22T14:30:00Z",
     members: [
       {
         id: "1",
@@ -67,6 +69,8 @@ export const DUMMY_GROUPS: Group[] = [
     name: "Weekend Trip",
     category: "TRAVEL",
     balance: -120.5,
+    createdBy: "usr_1",
+    lastActivity: "2024-05-20T10:00:00Z",
     members: [
       {
         id: "4",
@@ -95,6 +99,8 @@ export const DUMMY_GROUPS: Group[] = [
     name: "Office Lunch",
     category: "FOOD & DINING",
     balance: 23.75,
+    createdBy: "usr_3",
+    lastActivity: "2024-05-18T12:15:00Z",
     members: [
       {
         id: "8",
@@ -107,185 +113,44 @@ export const DUMMY_GROUPS: Group[] = [
         avatar: "https://i.pravatar.cc/150?img=9",
       },
     ],
+  },
+];
+
+export const expenses = [
+  {
+    id: "1",
+    description: "Dinner at Mario's",
+    amount: 80.0,
+    paidBy: "You",
+    date: "Oct 24",
+    youOwe: 26.67,
+    type: "food",
+  },
+  {
+    id: "2",
+    description: "Uber to Hotel",
+    amount: 24.5,
+    paidBy: "You",
+    date: "Oct 23",
+    youGet: 12.25,
+    type: "transport",
+  },
+  {
+    id: "3",
+    description: "Supplies",
+    amount: 56.0,
+    paidBy: "Bob",
+    date: "Oct 22",
+    youOwe: 18.67,
+    type: "supplies",
   },
   {
     id: "4",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "5",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "6",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "7",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "8",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "9",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "10",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "11",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "12",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
-  },
-  {
-    id: "13",
-    name: "Office Lunch",
-    category: "FOOD & DINING",
-    balance: 23.75,
-    members: [
-      {
-        id: "8",
-        name: "Alex",
-        avatar: "https://i.pravatar.cc/150?img=8",
-      },
-      {
-        id: "9",
-        name: "Kim",
-        avatar: "https://i.pravatar.cc/150?img=9",
-      },
-    ],
+    description: "Fuel Stop",
+    amount: 40.0,
+    paidBy: "Alice",
+    date: "Oct 20",
+    youOwe: 13.33,
+    type: "fuel",
   },
 ];
