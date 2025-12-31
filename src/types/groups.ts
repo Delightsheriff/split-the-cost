@@ -3,6 +3,7 @@ export interface Group {
   name: string;
   category: string;
   members: Member[];
+  invitedEmails?: string[];
   balance: number;
   createdBy: string; // Added: Needed to identify who can edit/delete group
   lastActivity: string; // Added: Helpful for sorting the list by recent use
