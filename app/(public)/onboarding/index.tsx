@@ -1,5 +1,6 @@
 import OnboardingItem from "@/src/components/ui/onboardingItem";
 import OnboardingPaginator from "@/src/components/ui/onboardingPaginator";
+import { useAuth } from "@/src/contexts/AuthContext";
 import { useRouter } from "expo-router";
 import { ArrowRight, Wallet } from "lucide-react-native";
 import React, { useCallback, useRef, useState } from "react";
@@ -17,6 +18,8 @@ import onboardingData from "../../../src/services/data";
 
 const Onboarding = () => {
   const router = useRouter();
+  const { completeOnboarding } = useAuth();
+
   const { width: screenWidth } = useWindowDimensions();
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -37,17 +40,27 @@ const Onboarding = () => {
     slidesRef.current?.scrollToIndex({ index, animated: true });
   }, []);
 
-  const handleSkip = useCallback(() => {
-    router.push("/(public)/auth/login");
-  }, [router]);
+  const handleSkip = useCallback(async () => {
+    try {
+      await completeOnboarding();
+      router.replace("/(public)/auth/login");
+    } catch (error) {
+      console.error("Failed to complete onboarding:", error);
+    }
+  }, [completeOnboarding, router]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (currentIndex < onboardingData.length - 1) {
       scrollToIndex(currentIndex + 1);
     } else {
-      router.push("/(public)/auth/register");
+      try {
+        await completeOnboarding();
+        router.replace("/(public)/auth/register");
+      } catch (error) {
+        console.error("Failed to complete onboarding:", error);
+      }
     }
-  }, [currentIndex, router, scrollToIndex]);
+  }, [currentIndex, completeOnboarding, router, scrollToIndex]);
 
   return (
     <SafeAreaView className="flex-1 bg-background-dark">
