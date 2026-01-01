@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/contexts/AuthContext";
+import { useRouter } from "expo-router";
 import {
   Bell,
   DollarSign,
@@ -17,17 +19,18 @@ import {
 } from "react-native";
 
 const Index = () => {
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
 
-  const user = {
-    name: "Alex Johnson",
-    email: "alex.johnson@example.com",
-    avatar: "https://i.pravatar.cc/150?img=12",
-    verified: true,
-  };
+  if (!user) {
+    // Should never happen because of guards,
+    // but fail closed just in case
+    return null;
+  }
 
-  // 1. Move your list items into an array
   const settingsData = [
     {
       id: "edit",
@@ -72,7 +75,11 @@ const Index = () => {
     },
   ];
 
-  // 2. Component for the Header (The "Profile" title)
+  const handleLogout = async () => {
+    await signOut();
+    router.replace("/(public)/auth/login");
+  };
+
   const renderHeader = () => (
     <View className="px-6 py-6 border-b border-white/5 bg-background-dark">
       <Text className="text-4xl font-extrabold tracking-tight text-white font-manropeBold">
@@ -81,31 +88,35 @@ const Index = () => {
     </View>
   );
 
-  // 3. Component for the Profile Card (Top of the scrollable area)
   const renderProfileCard = () => (
     <View className="px-6 py-8 items-center">
       <View className="relative">
         <Image
-          source={{ uri: user.avatar }}
+          source={{
+            uri: user.avatar ?? "https://i.pravatar.cc/150?img=12",
+          }}
           className="w-24 h-24 rounded-full border-4 border-surface-dark"
         />
-        {user.verified && (
-          <View className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full items-center justify-center border-2 border-background-dark">
-            <Text className="text-[#0d1a0f] text-xs font-bold">✓</Text>
-          </View>
-        )}
+        <View className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full items-center justify-center border-2 border-background-dark">
+          <Text className="text-[#0d1a0f] text-xs font-bold">✓</Text>
+        </View>
       </View>
+
       <Text className="text-white text-2xl font-bold mt-4">{user.name}</Text>
       <Text className="text-slate-400 text-base mt-1">{user.email}</Text>
     </View>
   );
 
-  // 4. Component for the Footer (Logout & Version)
   const renderFooter = () => (
     <View className="px-6 py-8">
-      <TouchableOpacity className="rounded-xl py-4 items-center border border-red-500/20 mb-8">
+      <TouchableOpacity
+        onPress={handleLogout}
+        className="rounded-xl py-4 items-center border border-red-500/20 mb-8"
+        activeOpacity={0.8}
+      >
         <Text className="text-red-500 text-lg font-bold">Log Out</Text>
       </TouchableOpacity>
+
       <Text className="text-slate-500 text-sm font-medium text-center">
         Version 1.0.0 • Build 100
       </Text>
@@ -114,7 +125,6 @@ const Index = () => {
 
   return (
     <View className="flex-1 bg-background-dark">
-      {/* OPTION: Fixed Header (Stays put, doesn't scroll) */}
       {renderHeader()}
 
       <FlatList
@@ -133,6 +143,7 @@ const Index = () => {
               <View className="w-10 h-10 rounded-full items-center justify-center bg-white/5 mr-3">
                 {item.icon}
               </View>
+
               <Text className="flex-1 text-white text-base">{item.title}</Text>
 
               {item.type === "switch" ? (

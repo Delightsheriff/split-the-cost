@@ -1,11 +1,13 @@
+import { useLogin } from "@/src/services/auth.service";
 import { LoginForm, loginSchema } from "@/src/types/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Eye, EyeOff, Mail, Wallet } from "lucide-react-native";
+import { Eye, EyeOff, Mail, Wallet } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,12 +20,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const Login = () => {
   const router = useRouter();
+  const loginMutation = useLogin();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     control,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
@@ -31,20 +35,27 @@ const Login = () => {
   const onSubmit = async (data: LoginForm) => {
     setIsSubmitting(true);
     try {
-      console.log(data);
-      // TODO: Add your API call here
-      // await loginUser(data);
+      await loginMutation.mutateAsync(data);
       router.replace("/(app)/(tabs)");
     } catch (error) {
       console.error(error);
+      Alert.alert(
+        "Login Failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to log in. Please try again.",
+        [{ text: "OK" }]
+      );
+      // Clear input fields on error
+      reset();
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  function handleGoBack() {
-    router.back();
-  }
+  // function handleGoBack() {
+  //   router.back();
+  // }
 
   function handleForgotPassword() {
     // TODO: Navigate to forgot password
@@ -67,9 +78,9 @@ const Login = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 p-6">
+          <View className="flex-1 p-6 justify-center">
             {/* Top bar */}
-            <View className="flex-row items-center justify-between mt-4">
+            {/* <View className="flex-row items-center justify-between mt-4">
               <Pressable
                 onPress={handleGoBack}
                 className="px-2 py-1"
@@ -79,7 +90,7 @@ const Login = () => {
                   <ArrowLeft size={24} color="#f6f8f6" />
                 </View>
               </Pressable>
-            </View>
+            </View> */}
 
             <View className="flex justify-center items-center gap-2 mt-4">
               <View className="w-16 h-16 rounded-xl bg-primary/20 items-center justify-center shadow-lg shadow-primary/20">

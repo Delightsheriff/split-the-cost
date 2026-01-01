@@ -1,11 +1,13 @@
+import { useRegister } from "@/src/services/auth.service";
 import { RegisterForm, registerSchema } from "@/src/types/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Eye, EyeOff, Mail, User } from "lucide-react-native";
+import { Eye, EyeOff, Mail, User } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,12 +20,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const Register = () => {
   const router = useRouter();
+  const registerMutation = useRegister();
+
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     control,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
   });
@@ -31,19 +36,25 @@ const Register = () => {
   const onSubmit = async (data: RegisterForm) => {
     setIsSubmitting(true);
     try {
-      console.log(data);
-      // TODO: Add your API call here
-      // await registerUser(data);
+      await registerMutation.mutateAsync(data);
     } catch (error) {
       console.error(error);
+      Alert.alert(
+        "Registration Failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to create account. Please try again.",
+        [{ text: "OK" }]
+      );
+      reset();
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  function handleGOBack() {
-    router.back();
-  }
+  // function handleGOBack() {
+  //   router.back();
+  // }
 
   function handleSignIn() {
     router.push("/(public)/auth/login");
@@ -62,9 +73,9 @@ const Register = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 p-6">
+          <View className="flex-1 p-6 justify-center">
             {/* Top bar */}
-            <View className="flex-row items-center justify-between mt-4">
+            {/* <View className="flex-row items-center justify-between mt-4">
               <Pressable
                 onPress={handleGOBack}
                 className="px-2 py-1"
@@ -74,7 +85,7 @@ const Register = () => {
                   <ArrowLeft size={24} color="#f6f8f6" />
                 </View>
               </Pressable>
-            </View>
+            </View> */}
 
             {/* Content */}
             <View className="px-2 mt-4">
