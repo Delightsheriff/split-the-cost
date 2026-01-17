@@ -1,3 +1,4 @@
+import { useAuth } from "@/src/contexts/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ArrowRight, Wallet } from "lucide-react-native";
@@ -8,8 +9,10 @@ import "../global.css";
 
 const Welcome = () => {
   const router = useRouter();
+  const { completeOnboarding } = useAuth();
 
-  function handleSkip() {
+  async function handleSkip() {
+    await completeOnboarding();
     router.push("/(public)/auth/login");
   }
 

@@ -1,8 +1,12 @@
+import { useAuth } from "@/src/contexts/AuthContext";
+import { useCreateGroup } from "@/src/services/group.service";
 import { GroupForm, groupSchema } from "@/src/types/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,9 +17,13 @@ import {
 } from "react-native";
 
 const CreateGroup = () => {
-  // TODO: Replace with actual auth store email
-  const authenticatedUserEmail = "alice@example.com";
-  const [currentEmail, setCurrentEmail] = useState("");
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const authenticatedUserEmail = user?.email ?? "";
+  const createGroup = useCreateGroup();
+
+  const [emailInput, setEmailInput] = useState("");
 
   const {
     control,
@@ -32,31 +40,55 @@ const CreateGroup = () => {
   });
 
   const members = watch("members");
-  const additionalEmails = members.slice(1);
+  const additionalMembers = members.slice(1);
 
   const handleAddEmail = () => {
-    const trimmed = currentEmail.trim().toLowerCase();
+    const normalized = emailInput.toLowerCase().trim();
 
-    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+    const emailSchema = groupSchema.shape.members.element;
+    const result = emailSchema.safeParse(normalized);
 
-    if (members.includes(trimmed)) {
-      setCurrentEmail("");
+    if (!result.success || !normalized) {
+      setEmailInput("");
       return;
     }
 
-    setValue("members", [...members, trimmed], { shouldValidate: true });
-    setCurrentEmail("");
+    if (members.includes(normalized)) {
+      setEmailInput("");
+      return;
+    }
+
+    setValue("members", [...members, normalized], { shouldValidate: true });
+    setEmailInput("");
   };
 
-  const handleRemoveEmail = (index: number) => {
-    const newMembers = members.filter((_, i) => i !== index + 1);
-    setValue("members", newMembers, { shouldValidate: true });
+  const handleRemoveEmail = (email: string) => {
+    const filtered = members.filter((m) => m !== email);
+    setValue("members", filtered, { shouldValidate: true });
   };
 
-  const onSubmit = (data: GroupForm) => {
-    console.log(data);
-    // TODO: Submit to API
+  const onSubmit = async (data: GroupForm) => {
+    const uniqueMembers = Array.from(
+      new Set(data.members.map((e) => e.toLowerCase().trim())),
+    );
+
+    if (!uniqueMembers.includes(authenticatedUserEmail)) {
+      uniqueMembers.unshift(authenticatedUserEmail);
+    }
+
+    try {
+      await createGroup.mutateAsync({
+        name: data.name,
+        members: uniqueMembers,
+      });
+
+      router.back();
+    } catch (error) {
+      console.error("Failed to create group:", error);
+    }
   };
+
+  const isSubmitting = createGroup.isPending;
 
   return (
     <KeyboardAvoidingView
@@ -87,9 +119,10 @@ const CreateGroup = () => {
                       placeholder="E.g., Weekend Trip"
                       placeholderTextColor="#9db9a6"
                       keyboardType="default"
-                      autoCapitalize="none"
+                      autoCapitalize="words"
                       autoComplete="off"
                       returnKeyType="next"
+                      editable={!isSubmitting}
                       onBlur={onBlur}
                       onChangeText={onChange}
                       value={value}
@@ -110,24 +143,26 @@ const CreateGroup = () => {
                 Members
               </Text>
 
-              {/* Authenticated user email (non-deletable) */}
+              {/* Authenticated user (non-removable) */}
               <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4 h-14 mb-3">
                 <Text className="flex-1 text-white text-base font-manrope">
                   {authenticatedUserEmail}
                 </Text>
+                <Text className="text-gray-500 text-sm">You</Text>
               </View>
 
-              {/* Additional emails with delete button */}
-              {additionalEmails.map((email, index) => (
+              {/* Additional members */}
+              {additionalMembers.map((email) => (
                 <View
-                  key={index}
+                  key={email}
                   className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4 h-14 mb-3"
                 >
                   <Text className="flex-1 text-white text-base font-manrope">
                     {email}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => handleRemoveEmail(index)}
+                    onPress={() => handleRemoveEmail(email)}
+                    disabled={isSubmitting}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Text className="text-gray-400 text-xl font-bold">×</Text>
@@ -145,13 +180,15 @@ const CreateGroup = () => {
                   autoCapitalize="none"
                   autoComplete="email"
                   returnKeyType="done"
-                  value={currentEmail}
-                  onChangeText={setCurrentEmail}
+                  editable={!isSubmitting}
+                  value={emailInput}
+                  onChangeText={setEmailInput}
                   onSubmitEditing={handleAddEmail}
                 />
-                {currentEmail.length > 0 && (
+                {emailInput.length > 0 && (
                   <TouchableOpacity
-                    onPress={() => setCurrentEmail("")}
+                    onPress={() => setEmailInput("")}
+                    disabled={isSubmitting}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Text className="text-gray-400 text-xl font-bold">×</Text>
@@ -162,6 +199,7 @@ const CreateGroup = () => {
               {/* Add Member button */}
               <TouchableOpacity
                 onPress={handleAddEmail}
+                disabled={isSubmitting}
                 className="w-full rounded-xl bg-surface-dark border-[2px] border-dashed border-white/10 py-4 items-center"
               >
                 <Text className="text-primary text-lg font-semibold font-manrope">
@@ -169,7 +207,6 @@ const CreateGroup = () => {
                 </Text>
               </TouchableOpacity>
 
-              {/* Members validation error */}
               {errors.members && (
                 <Text className="text-red-500 text-sm mt-2 ml-1">
                   {errors.members.message}
@@ -184,12 +221,19 @@ const CreateGroup = () => {
       <View className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4 bg-[#0d1a0f]">
         <TouchableOpacity
           onPress={handleSubmit(onSubmit)}
-          className="w-full rounded-full bg-primary py-4 items-center"
+          disabled={isSubmitting}
+          className={`w-full rounded-full py-4 items-center ${
+            isSubmitting ? "bg-primary/50" : "bg-primary"
+          }`}
           activeOpacity={0.8}
         >
-          <Text className="text-white text-lg font-bold font-manropeBold">
-            Create Group
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text className="text-white text-lg font-bold font-manropeBold">
+              Create Group
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
