@@ -1,3 +1,5 @@
+import InputField from "@/src/components/ui/InputField";
+import MemberItem from "@/src/components/ui/MemberItem";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useCreateGroup } from "@/src/services/group.service";
 import { GroupForm, groupSchema } from "@/src/types/schema";
@@ -11,7 +13,6 @@ import {
   Platform,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -19,11 +20,9 @@ import {
 const CreateGroup = () => {
   const { user } = useAuth();
   const router = useRouter();
-
-  const authenticatedUserEmail = user?.email ?? "";
   const createGroup = useCreateGroup();
-
   const [emailInput, setEmailInput] = useState("");
+  const authenticatedUserEmail = user?.email ?? "";
 
   const {
     control,
@@ -33,27 +32,19 @@ const CreateGroup = () => {
     watch,
   } = useForm<GroupForm>({
     resolver: zodResolver(groupSchema),
-    defaultValues: {
-      name: "",
-      members: [authenticatedUserEmail],
-    },
+    defaultValues: { name: "", members: [authenticatedUserEmail] },
   });
 
   const members = watch("members");
   const additionalMembers = members.slice(1);
+  const isSubmitting = createGroup.isPending;
 
   const handleAddEmail = () => {
     const normalized = emailInput.toLowerCase().trim();
-
     const emailSchema = groupSchema.shape.members.element;
     const result = emailSchema.safeParse(normalized);
 
-    if (!result.success || !normalized) {
-      setEmailInput("");
-      return;
-    }
-
-    if (members.includes(normalized)) {
+    if (!result.success || !normalized || members.includes(normalized)) {
       setEmailInput("");
       return;
     }
@@ -62,170 +53,98 @@ const CreateGroup = () => {
     setEmailInput("");
   };
 
-  const handleRemoveEmail = (email: string) => {
-    const filtered = members.filter((m) => m !== email);
-    setValue("members", filtered, { shouldValidate: true });
-  };
-
   const onSubmit = async (data: GroupForm) => {
-    const uniqueMembers = Array.from(
-      new Set(data.members.map((e) => e.toLowerCase().trim())),
-    );
-
-    if (!uniqueMembers.includes(authenticatedUserEmail)) {
-      uniqueMembers.unshift(authenticatedUserEmail);
-    }
-
     try {
       await createGroup.mutateAsync({
         name: data.name,
-        members: uniqueMembers,
+        members: Array.from(
+          new Set(data.members.map((e) => e.toLowerCase().trim())),
+        ),
       });
-
       router.back();
     } catch (error) {
       console.error("Failed to create group:", error);
     }
   };
 
-  const isSubmitting = createGroup.isPending;
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
-      keyboardVerticalOffset={0}
     >
       <ScrollView
         className="flex-1 bg-background-dark"
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 px-6">
-          <View className="mt-10">
-            {/* Group Name */}
-            <View className="mb-4">
-              <Text className="text-white text-lg font-medium leading-normal font-manrope mb-4">
-                Group Name
-              </Text>
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4">
-                    <TextInput
-                      className="flex-1 text-white h-14 text-base font-manrope"
-                      placeholder="E.g., Weekend Trip"
-                      placeholderTextColor="#9db9a6"
-                      keyboardType="default"
-                      autoCapitalize="words"
-                      autoComplete="off"
-                      returnKeyType="next"
-                      editable={!isSubmitting}
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value}
-                    />
-                  </View>
-                )}
+        <View className="flex-1 px-6 pt-10">
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <InputField
+                label="Group Name"
+                placeholder="E.g., Weekend Trip"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                error={errors.name?.message}
+                editable={!isSubmitting}
               />
-              {errors.name && (
-                <Text className="text-red-500 text-sm mt-1 ml-1">
-                  {errors.name.message}
-                </Text>
-              )}
-            </View>
+            )}
+          />
 
-            {/* Members */}
-            <View className="mb-4">
-              <Text className="text-white text-xl font-bold leading-tight tracking-[-0.015em] font-manropeBold mb-4">
-                Members
-              </Text>
+          <View className="mb-4">
+            <Text className="text-white text-xl font-bold font-manropeBold mb-4">
+              Members
+            </Text>
 
-              {/* Authenticated user (non-removable) */}
-              <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4 h-14 mb-3">
-                <Text className="flex-1 text-white text-base font-manrope">
-                  {authenticatedUserEmail}
-                </Text>
-                <Text className="text-gray-500 text-sm">You</Text>
-              </View>
+            <MemberItem email={authenticatedUserEmail} isUser />
 
-              {/* Additional members */}
-              {additionalMembers.map((email) => (
-                <View
-                  key={email}
-                  className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4 h-14 mb-3"
-                >
-                  <Text className="flex-1 text-white text-base font-manrope">
-                    {email}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveEmail(email)}
-                    disabled={isSubmitting}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text className="text-gray-400 text-xl font-bold">×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-
-              {/* Email input */}
-              <View className="flex-row items-center w-full rounded-xl bg-[#1c271f] border border-gray-700 px-4 mb-3">
-                <TextInput
-                  className="flex-1 text-white h-14 text-base font-manrope"
-                  placeholder="Enter email address"
-                  placeholderTextColor="#9db9a6"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  returnKeyType="done"
-                  editable={!isSubmitting}
-                  value={emailInput}
-                  onChangeText={setEmailInput}
-                  onSubmitEditing={handleAddEmail}
-                />
-                {emailInput.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setEmailInput("")}
-                    disabled={isSubmitting}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text className="text-gray-400 text-xl font-bold">×</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Add Member button */}
-              <TouchableOpacity
-                onPress={handleAddEmail}
+            {additionalMembers.map((email) => (
+              <MemberItem
+                key={email}
+                email={email}
+                onRemove={() =>
+                  setValue(
+                    "members",
+                    members.filter((m) => m !== email),
+                    { shouldValidate: true },
+                  )
+                }
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-surface-dark border-[2px] border-dashed border-white/10 py-4 items-center"
-              >
-                <Text className="text-primary text-lg font-semibold font-manrope">
-                  + Add Member
-                </Text>
-              </TouchableOpacity>
+              />
+            ))}
 
-              {errors.members && (
-                <Text className="text-red-500 text-sm mt-2 ml-1">
-                  {errors.members.message}
-                </Text>
-              )}
-            </View>
+            <InputField
+              placeholder="Enter email address"
+              value={emailInput}
+              onChangeText={setEmailInput}
+              onSubmitEditing={handleAddEmail}
+              editable={!isSubmitting}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.members?.message}
+            />
+
+            <TouchableOpacity
+              onPress={handleAddEmail}
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-surface-dark border-[2px] border-dashed border-white/10 py-4 items-center"
+            >
+              <Text className="text-primary text-lg font-semibold font-manrope">
+                + Add Member
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
 
-      {/* Fixed bottom button */}
-      <View className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4 bg-[#0d1a0f]">
+      <View className="px-6 pb-8 pt-4 bg-[#0d1a0f]">
         <TouchableOpacity
           onPress={handleSubmit(onSubmit)}
           disabled={isSubmitting}
-          className={`w-full rounded-full py-4 items-center ${
-            isSubmitting ? "bg-primary/50" : "bg-primary"
-          }`}
-          activeOpacity={0.8}
+          className={`w-full rounded-full py-4 items-center ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#fff" />
