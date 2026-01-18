@@ -42,6 +42,7 @@ const Index = () => {
 
   return (
     <View className="flex-1 bg-background-dark">
+      {/* Header Bit */}
       <View className="px-6 py-6 border-b border-white/5">
         <Text className="text-4xl font-extrabold tracking-tight text-white font-manropeBold">
           My Groups
@@ -68,6 +69,7 @@ const Index = () => {
           onRefresh={refetch}
         />
 
+        {/* FAB Bit */}
         <Pressable
           onPress={() => router.push("/(app)/group/create")}
           className="absolute bottom-6 right-6 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/50"
