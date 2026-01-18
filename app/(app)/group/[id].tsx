@@ -3,7 +3,10 @@ import { ExpenseIcon } from "@/src/components/ui/ExpenseIcon";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useGroupExpenses } from "@/src/services/expense.service";
 import { useGroup } from "@/src/services/group.service";
-import { useGroupBalances } from "@/src/services/settlement.service";
+import {
+  useGroupBalances,
+  usePairBalances,
+} from "@/src/services/settlement.service";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
 import React, { useState } from "react";
@@ -29,6 +32,7 @@ export default function GroupDetails() {
   const { data: group, isLoading: groupLoading } = useGroup(id);
   const { data: expenses, isLoading: expensesLoading } = useGroupExpenses(id);
   const { data: balances } = useGroupBalances(id);
+  const { data: pairBalances } = usePairBalances(id, user?._id || "");
 
   if (groupLoading || expensesLoading) {
     return (
@@ -45,16 +49,16 @@ export default function GroupDetails() {
   const isOwed = userBalance > 0;
   const balanceAmount = Math.abs(userBalance).toFixed(2);
 
-  const membersWhoOweMe =
-    balances?.filter((b) => b.userId !== user?._id && b.balance < 0) || [];
-  const membersIOwe =
-    balances?.filter((b) => b.userId !== user?._id && b.balance > 0) || [];
+  // Use pairwise balances to correctly identify who owes me vs who I owe
+  // Positive balance = they owe me, Negative balance = I owe them
+  const membersWhoOweMe = pairBalances?.filter((b) => b.balance > 0) || [];
+  const membersIOwe = pairBalances?.filter((b) => b.balance < 0) || [];
 
   const renderExpenseItem = ({ item }: { item: any }) => {
     const splitAmount = item.amount / item.splitBetween.length;
     const userPaid = item.paidBy._id === user?._id;
     const userIsInSplit = item.splitBetween.some(
-      (m: any) => m._id === user?._id,
+      (m: any) => m._id === user?._id
     );
 
     const youOwe = !userPaid && userIsInSplit ? splitAmount : 0;
@@ -258,7 +262,7 @@ export default function GroupDetails() {
                       </Text>
                     </View>
                     <Text className="text-primary text-lg font-bold font-manropeBold">
-                      ${Math.abs(member.balance).toFixed(2)}
+                      ${member.balance.toFixed(2)}
                     </Text>
                   </View>
                 ))}
@@ -310,26 +314,71 @@ export default function GroupDetails() {
               </View>
 
               <View className="py-4 border-b border-white/5">
-                <Text className="text-slate-400 font-manrope mb-3">
+                <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
                   Split Between
                 </Text>
-                {selectedExpense.splitBetween.map((member: any) => (
-                  <View
-                    key={member._id}
-                    className="flex-row justify-between py-2"
-                  >
-                    <Text className="text-white font-manrope">
-                      {member.name}
-                    </Text>
-                    <Text className="text-slate-400 font-manrope">
-                      $
-                      {(
-                        selectedExpense.amount /
-                        selectedExpense.splitBetween.length
-                      ).toFixed(2)}
-                    </Text>
-                  </View>
-                ))}
+                {selectedExpense.splitBetween.map((member: any) => {
+                  const splitAmount =
+                    selectedExpense.amount /
+                    selectedExpense.splitBetween.length;
+                  const paidById = selectedExpense.paidBy._id;
+                  const memberId = member._id;
+                  const isPayer = paidById === memberId;
+                  const isCurrentUser = memberId === user?._id;
+                  const userOwes = !isPayer && isCurrentUser;
+
+                  return (
+                    <View
+                      key={member._id}
+                      className="flex-row items-center justify-between py-3 border-b border-white/5 last:border-b-0"
+                    >
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-2">
+                          <Text className="text-white font-manropeBold">
+                            {member.name}
+                            {isCurrentUser && " (You)"}
+                          </Text>
+                        </View>
+                        <Text className="text-slate-400 text-xs font-manrope mt-1">
+                          {isPayer
+                            ? "Paid their share"
+                            : `Owes $${splitAmount.toFixed(2)}`}
+                        </Text>
+                      </View>
+                      <View className="items-end">
+                        {isPayer ? (
+                          <Text className="text-primary text-base font-bold font-manropeBold">
+                            +${splitAmount.toFixed(2)}
+                          </Text>
+                        ) : (
+                          <Text className="text-red-400 text-base font-bold font-manropeBold">
+                            -${splitAmount.toFixed(2)}
+                          </Text>
+                        )}
+                        {userOwes && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setSelectedExpense(null);
+                              router.push({
+                                pathname: "/(app)/expense/SettlementCreate",
+                                params: {
+                                  groupId: id,
+                                  paidTo: paidById,
+                                  amount: splitAmount.toFixed(2),
+                                },
+                              });
+                            }}
+                            className="bg-primary px-4 py-2 rounded-lg mt-2"
+                          >
+                            <Text className="text-background-dark text-xs font-manropeBold">
+                              Settle Up
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             </ScrollView>
           </View>

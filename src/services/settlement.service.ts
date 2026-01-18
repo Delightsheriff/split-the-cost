@@ -64,6 +64,17 @@ export function useGroupBalances(groupId: string) {
   });
 }
 
+export function usePairBalances(groupId: string, userId: string) {
+  return useQuery({
+    queryKey: [...balanceKeys.byGroup(groupId), "pair", userId],
+    queryFn: () =>
+      apiRequest<MemberBalance[]>(
+        `/api/groups/${groupId}/pair-balances/${userId}`
+      ),
+    enabled: !!groupId && !!userId,
+  });
+}
+
 export function useCreateSettlement() {
   const queryClient = useQueryClient();
 
