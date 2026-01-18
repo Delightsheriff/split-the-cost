@@ -1,44 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./client";
 
-export type CreateGroupRequest = {
-  name: string;
-  members: string[]; // emails
-};
-
-export type CreateGroupResponse = {
-  group: {
-    _id: string;
-    name: string;
-    members: string[];
-    invitedEmails: string[];
-    createdBy: string;
-    balance: number;
-    lastActivity: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-  meta: {
-    existingMemberCount: number;
-    invitedCount: number;
-  };
-};
-
-export function useCreateGroup() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateGroupRequest) =>
-      apiRequest<CreateGroupResponse>("/api/groups", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-    },
-  });
-}
-
 export type Group = {
   _id: string;
   name: string;
@@ -60,14 +22,52 @@ export type Group = {
   updatedAt: string;
 };
 
+export type CreateGroupRequest = {
+  name: string;
+  members: string[];
+};
+
+export type CreateGroupResponse = {
+  group: Group;
+  meta: {
+    existingMemberCount: number;
+    invitedCount: number;
+  };
+};
+
 export const groupKeys = {
   all: ["groups"] as const,
   lists: () => [...groupKeys.all, "list"] as const,
+  details: () => [...groupKeys.all, "detail"] as const,
+  detail: (id: string) => [...groupKeys.details(), id] as const,
 };
 
 export function useGroups() {
   return useQuery({
     queryKey: groupKeys.lists(),
     queryFn: () => apiRequest<Group[]>("/api/groups"),
+  });
+}
+
+export function useGroup(groupId: string) {
+  return useQuery({
+    queryKey: groupKeys.detail(groupId),
+    queryFn: () => apiRequest<Group>(`/api/groups/${groupId}`),
+    enabled: !!groupId,
+  });
+}
+
+export function useCreateGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateGroupRequest) =>
+      apiRequest<CreateGroupResponse>("/api/groups", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+    },
   });
 }

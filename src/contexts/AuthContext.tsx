@@ -7,7 +7,7 @@ const TOKEN_KEY = "auth_token";
 const ONBOARDING_KEY = "onboarding_completed";
 
 export type User = {
-  id: string;
+  _id: string;
   email: string;
   name: string;
   avatar?: string;

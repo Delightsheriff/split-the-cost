@@ -1,8 +1,12 @@
-import { DUMMY_GROUPS } from "@/src/services/data";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { useCreateExpense } from "@/src/services/expense.service";
+import { useGroup } from "@/src/services/group.service";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, Check, User } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -12,56 +16,79 @@ import {
   View,
 } from "react-native";
 
-// Expense type options
 const EXPENSE_TYPES = [
   { type: "food", icon: "🍽️", label: "Food" },
   { type: "transport", icon: "🚕", label: "Transport" },
   { type: "supplies", icon: "🛒", label: "Supplies" },
   { type: "fuel", icon: "⛽", label: "Fuel" },
   { type: "other", icon: "💰", label: "Other" },
-];
+] as const;
 
 const CreateExpense = () => {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
+  const { user } = useAuth();
 
-  const group = DUMMY_GROUPS.find((g) => g.id === groupId);
+  const { data: group, isLoading: groupLoading } = useGroup(groupId);
+  const createExpense = useCreateExpense();
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [paidBy, setPaidBy] = useState("You");
-  const [date, setDate] = useState("Today, Oct 24");
-  const [expenseType, setExpenseType] = useState("other");
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(
-    group ? ["You", ...group.members.map((m) => m.id)] : ["You"]
-  );
-
+  const [paidBy, setPaidBy] = useState(user?._id || "");
+  const [expenseType, setExpenseType] = useState<
+    "food" | "transport" | "supplies" | "fuel" | "other"
+  >("other");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
+
+  // Initialize selectedMembers when group loads
+  React.useEffect(() => {
+    if (group && user && selectedMembers.length === 0) {
+      // Auto-select all members including current user
+      const allMemberIds = group.members.map((m) => m._id);
+      setSelectedMembers(allMemberIds);
+      setPaidBy(user._id);
+    }
+  }, [group, user, selectedMembers.length]);
 
   const toggleMember = (memberId: string) => {
     setSelectedMembers((prev) =>
       prev.includes(memberId)
         ? prev.filter((id) => id !== memberId)
-        : [...prev, memberId]
+        : [...prev, memberId],
     );
   };
 
-  const handleSubmit = () => {
-    const expenseData = {
-      groupId,
-      amount: parseFloat(amount),
-      description,
-      paidBy,
-      date,
-      type: expenseType,
-      splitBetween: selectedMembers,
-      splitAmount: parseFloat(amount) / selectedMembers.length,
-    };
+  const handleSubmit = async () => {
+    if (!amount || !description || selectedMembers.length === 0) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
 
-    console.log("Expense Data:", expenseData);
-    // TODO: Submit to API
-    router.back();
+    try {
+      await createExpense.mutateAsync({
+        groupId,
+        description,
+        amount: parseFloat(amount),
+        type: expenseType,
+        paidBy,
+        splitBetween: selectedMembers,
+      });
+
+      router.back();
+    } catch (error) {
+      Alert.alert("Error", "Failed to create expense");
+      console.error("Failed to create expense:", error);
+    }
   };
+
+  if (groupLoading) {
+    return (
+      <View className="flex-1 bg-background-dark items-center justify-center">
+        <ActivityIndicator size="large" color="#13ec5b" />
+      </View>
+    );
+  }
 
   if (!group) {
     return (
@@ -72,6 +99,8 @@ const CreateExpense = () => {
   }
 
   const selectedType = EXPENSE_TYPES.find((t) => t.type === expenseType);
+  const paidByMember = group.members.find((m) => m._id === paidBy);
+  const isSubmitting = createExpense.isPending;
 
   return (
     <View className="flex-1 bg-background-dark">
@@ -82,8 +111,8 @@ const CreateExpense = () => {
       >
         {/* Amount Input */}
         <View className="px-6 py-8 items-center border-b border-white/5">
-          <View className="flex-row items-center">
-            <Text className="text-slate-400 text-5xl font-bold font-manropeBold mr-2">
+          <View className="flex-row items-center justify-center">
+            <Text className="text-slate-400 text-5xl font-bold font-manropeBold mr-2 p-4">
               $
             </Text>
             <TextInput
@@ -93,6 +122,7 @@ const CreateExpense = () => {
               keyboardType="decimal-pad"
               value={amount}
               onChangeText={setAmount}
+              editable={!isSubmitting}
               autoFocus
             />
           </View>
@@ -102,7 +132,8 @@ const CreateExpense = () => {
         <View className="px-6 py-4 gap-3">
           {/* Description */}
           <TouchableOpacity
-            onPress={() => setShowTypeModal(true)}
+            onPress={() => !isSubmitting && setShowTypeModal(true)}
+            disabled={isSubmitting}
             className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5"
           >
             <View className="w-10 h-10 rounded-full items-center justify-center bg-white/10 mr-3">
@@ -118,12 +149,13 @@ const CreateExpense = () => {
                 placeholderTextColor="#64748b"
                 value={description}
                 onChangeText={setDescription}
+                editable={!isSubmitting}
               />
             </View>
           </TouchableOpacity>
 
           {/* Paid By */}
-          <TouchableOpacity className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5">
+          <View className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5">
             <View className="w-10 h-10 rounded-full items-center justify-center bg-blue-500/20 mr-3">
               <User size={20} color="#3b82f6" />
             </View>
@@ -132,14 +164,13 @@ const CreateExpense = () => {
                 Paid by
               </Text>
               <Text className="text-white text-base font-manrope">
-                {paidBy}
+                {paidByMember?._id === user?._id ? "You" : paidByMember?.name}
               </Text>
             </View>
-            <Text className="text-slate-400">›</Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Date */}
-          <TouchableOpacity className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5">
+          <View className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5">
             <View className="w-10 h-10 rounded-full items-center justify-center bg-orange-500/20 mr-3">
               <Calendar size={20} color="#f97316" />
             </View>
@@ -147,10 +178,14 @@ const CreateExpense = () => {
               <Text className="text-slate-400 text-xs font-medium uppercase tracking-wider font-manrope mb-1">
                 Date
               </Text>
-              <Text className="text-white text-base font-manrope">{date}</Text>
+              <Text className="text-white text-base font-manrope">
+                {new Date().toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
             </View>
-            <Text className="text-slate-400">›</Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Split Between */}
@@ -160,42 +195,22 @@ const CreateExpense = () => {
           </Text>
 
           <View className="gap-2">
-            {/* You */}
-            <TouchableOpacity
-              onPress={() => toggleMember("You")}
-              className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5"
-            >
-              <View className="w-10 h-10 rounded-full bg-orange-500 items-center justify-center mr-3">
-                <Text className="text-white text-sm font-bold font-manropeBold">
-                  Y
-                </Text>
-              </View>
-              <Text className="flex-1 text-white text-base font-manrope">
-                You
-              </Text>
-              {selectedMembers.includes("You") && (
-                <View className="w-6 h-6 rounded-full bg-primary items-center justify-center">
-                  <Check size={16} color="#0d1a0f" strokeWidth={3} />
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Group Members */}
             {group.members.map((member) => {
+              const isCurrentUser = member._id === user?._id;
               const initials = member.name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")
                 .toUpperCase();
-              const colors = ["#8b5cf6", "#06b6d4", "#10b981"];
+              const colors = ["#f97316", "#8b5cf6", "#06b6d4", "#10b981"];
               const colorIndex =
-                parseInt(member.id) % colors.length ||
-                Math.floor(Math.random() * colors.length);
+                parseInt(member._id.slice(-2), 16) % colors.length;
 
               return (
                 <TouchableOpacity
-                  key={member.id}
-                  onPress={() => toggleMember(member.id)}
+                  key={member._id}
+                  onPress={() => !isSubmitting && toggleMember(member._id)}
+                  disabled={isSubmitting}
                   className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5"
                 >
                   <View
@@ -207,9 +222,9 @@ const CreateExpense = () => {
                     </Text>
                   </View>
                   <Text className="flex-1 text-white text-base font-manrope">
-                    {member.name}
+                    {isCurrentUser ? "You" : member.name}
                   </Text>
-                  {selectedMembers.includes(member.id) && (
+                  {selectedMembers.includes(member._id) && (
                     <View className="w-6 h-6 rounded-full bg-primary items-center justify-center">
                       <Check size={16} color="#0d1a0f" strokeWidth={3} />
                     </View>
@@ -227,16 +242,28 @@ const CreateExpense = () => {
       <View className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4 bg-background-dark border-t border-white/5">
         <TouchableOpacity
           onPress={handleSubmit}
-          disabled={!amount || !description || selectedMembers.length === 0}
+          disabled={
+            !amount ||
+            !description ||
+            selectedMembers.length === 0 ||
+            isSubmitting
+          }
           className={`w-full rounded-xl py-4 items-center ${
-            !amount || !description || selectedMembers.length === 0
+            !amount ||
+            !description ||
+            selectedMembers.length === 0 ||
+            isSubmitting
               ? "bg-slate-700"
               : "bg-primary"
           }`}
         >
-          <Text className="text-[#0d1a0f] text-lg font-bold font-manropeBold">
-            Save Expense
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator color="#0d1a0f" />
+          ) : (
+            <Text className="text-[#0d1a0f] text-lg font-bold font-manropeBold">
+              Save Expense
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
