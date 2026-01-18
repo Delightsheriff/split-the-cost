@@ -69,7 +69,7 @@ export function usePairBalances(groupId: string, userId: string) {
     queryKey: [...balanceKeys.byGroup(groupId), "pair", userId],
     queryFn: () =>
       apiRequest<MemberBalance[]>(
-        `/api/groups/${groupId}/pair-balances/${userId}`
+        `/api/groups/${groupId}/pair-balances/${userId}`,
       ),
     enabled: !!groupId && !!userId,
   });
@@ -85,15 +85,21 @@ export function useCreateSettlement() {
         body: JSON.stringify(data),
       }),
     onSuccess: (_, variables) => {
-      // Invalidate balances, expenses, and settlements
+      // Invalidate all related queries to refresh the UI
       queryClient.invalidateQueries({
         queryKey: balanceKeys.byGroup(variables.groupId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: [...balanceKeys.byGroup(variables.groupId), "pair"],
       });
       queryClient.invalidateQueries({
         queryKey: expenseKeys.byGroup(variables.groupId),
       });
       queryClient.invalidateQueries({
         queryKey: groupKeys.detail(variables.groupId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settlementKeys.byGroup(variables.groupId),
       });
     },
   });

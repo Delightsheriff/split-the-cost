@@ -133,24 +133,6 @@ export default function SettlementCreate() {
               <Calendar size={20} color="#64748b" />
             </View>
           </View>
-
-          {/* Note Field */}
-          <View className="mb-8">
-            <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-2">
-              Note (Optional)
-            </Text>
-            <TextInput
-              className="bg-surface-dark rounded-xl p-4 text-white text-base font-manrope border border-white/5 min-h-[100px]"
-              placeholder="Add a note about this payment..."
-              placeholderTextColor="#64748b"
-              value={note}
-              onChangeText={setNote}
-              editable={!isSubmitting}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
         </View>
       </ScrollView>
 

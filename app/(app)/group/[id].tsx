@@ -57,13 +57,13 @@ export default function GroupDetails() {
     const splitAmount = item.amount / item.splitBetween.length;
     const userPaid = item.paidBy._id === user?._id;
     const userIsInSplit = item.splitBetween.some(
-      (m: any) => m._id === user?._id
+      (m: any) => m._id === user?._id,
     );
 
     // Check pairwise balance with payer to see if user actually owes them
     const payerId = item.paidBy._id;
     const pairBalanceWithPayer = pairBalances?.find(
-      (b) => b.userId === payerId
+      (b) => b.userId === payerId,
     );
     const actuallyOwePayer =
       pairBalanceWithPayer && pairBalanceWithPayer.balance < 0;
@@ -79,7 +79,7 @@ export default function GroupDetails() {
         .filter((m: any) => m._id !== user?._id)
         .reduce((sum: number, member: any) => {
           const pairBalance = pairBalances?.find(
-            (b) => b.userId === member._id
+            (b) => b.userId === member._id,
           );
           // If they still owe the user (positive balance), include their split
           if (pairBalance && pairBalance.balance > 0) {
@@ -120,12 +120,17 @@ export default function GroupDetails() {
             </Text>
             {youOwe > 0 && (
               <Text className="text-red-400 text-xs font-bold font-manrope">
-                You owe ${youOwe.toFixed(2)}
+                You still owe ${youOwe.toFixed(2)}
               </Text>
             )}
             {youGet > 0 && (
               <Text className="text-primary text-xs font-bold font-manrope">
-                You get ${youGet.toFixed(2)}
+                You&apos;re owed ${youGet.toFixed(2)}
+              </Text>
+            )}
+            {!userPaid && userIsInSplit && !actuallyOwePayer && (
+              <Text className="text-slate-500 text-xs font-bold font-manrope">
+                Settled
               </Text>
             )}
           </View>
@@ -212,7 +217,21 @@ export default function GroupDetails() {
               >
                 ${balanceAmount}
               </Text>
+              {userBalance === 0 && (
+                <Text className="text-slate-400 text-sm font-manrope mt-2">
+                  All settled up! 🎉
+                </Text>
+              )}
             </View>
+
+            {/* Show message when no debts exist */}
+            {membersIOwe.length === 0 && membersWhoOweMe.length === 0 && (
+              <View className="px-6 py-12 items-center">
+                <Text className="text-slate-400 text-base font-manrope text-center">
+                  No outstanding balances.{"\n"}Everyone is settled up!
+                </Text>
+              </View>
+            )}
 
             {/* Members I Owe */}
             {membersIOwe.length > 0 && (

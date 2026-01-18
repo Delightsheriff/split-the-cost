@@ -84,20 +84,38 @@ export default function ExpenseDetails() {
             const isPayer = paidById === memberId;
             const isCurrentUser = memberId === user?._id;
 
-            // For current user: check if they still owe the payer using pairwise balance
-            let userOwes = false;
-            let userSettled = false;
-            if (isCurrentUser && !isPayer) {
-              const pairBalanceWithPayer = pairBalances?.find(
-                (b) => b.userId === paidById
-              );
-              // Negative balance means user owes the payer
-              userOwes = pairBalanceWithPayer
-                ? pairBalanceWithPayer.balance < 0
-                : true; // If no balance data, assume they owe
-              userSettled = pairBalanceWithPayer
-                ? pairBalanceWithPayer.balance >= 0
-                : false;
+            // Check settlement status for each member (not just current user)
+            let memberOwes = false;
+            let memberSettled = false;
+
+            if (!isPayer) {
+              if (isCurrentUser) {
+                // For current user, check if they owe the payer
+                const pairBalanceWithPayer = pairBalances?.find(
+                  (b) => b.userId === paidById,
+                );
+                memberOwes = pairBalanceWithPayer
+                  ? pairBalanceWithPayer.balance < 0
+                  : true;
+                memberSettled = pairBalanceWithPayer
+                  ? pairBalanceWithPayer.balance >= 0
+                  : false;
+              } else if (user?._id === paidById) {
+                // If current user is the payer, check if this member still owes them
+                const pairBalanceWithMember = pairBalances?.find(
+                  (b) => b.userId === memberId,
+                );
+                memberOwes = pairBalanceWithMember
+                  ? pairBalanceWithMember.balance > 0
+                  : true;
+                memberSettled = pairBalanceWithMember
+                  ? pairBalanceWithMember.balance <= 0
+                  : false;
+              } else {
+                // Neither current user nor payer - cannot determine settlement status
+                memberOwes = false;
+                memberSettled = false;
+              }
             }
 
             return (
@@ -116,10 +134,14 @@ export default function ExpenseDetails() {
                     {isPayer
                       ? "Paid their share"
                       : isCurrentUser
-                        ? userSettled
-                          ? `Settled $${splitAmount.toFixed(2)}`
-                          : `Owes $${splitAmount.toFixed(2)}`
-                        : `Owes $${splitAmount.toFixed(2)}`}
+                        ? memberSettled
+                          ? `Split settled ($${splitAmount.toFixed(2)})`
+                          : memberOwes
+                            ? `Still owes overall`
+                            : `Split: $${splitAmount.toFixed(2)} (part of total debt)`
+                        : memberSettled
+                          ? `Settled ($${splitAmount.toFixed(2)})`
+                          : `Owes $${splitAmount.toFixed(2)}`}
                   </Text>
                 </View>
                 <View className="items-end">
@@ -127,24 +149,54 @@ export default function ExpenseDetails() {
                     <Text className="text-primary text-base font-bold font-manropeBold">
                       +${splitAmount.toFixed(2)}
                     </Text>
-                  ) : isCurrentUser && userSettled ? (
+                  ) : memberSettled ? (
                     <Text className="text-slate-500 text-base font-bold font-manropeBold">
                       $0.00
                     </Text>
+                  ) : isCurrentUser && memberOwes ? (
+                    <View className="items-end">
+                      <Text className="text-red-400 text-base font-bold font-manropeBold">
+                        -${splitAmount.toFixed(2)}
+                      </Text>
+                      {(() => {
+                        const pairBalance = pairBalances?.find(
+                          (b) => b.userId === paidById,
+                        );
+                        const totalOwed = pairBalance
+                          ? Math.abs(pairBalance.balance)
+                          : 0;
+                        if (totalOwed !== splitAmount) {
+                          return (
+                            <Text className="text-slate-400 text-xs font-manrope">
+                              (${totalOwed.toFixed(2)} total)
+                            </Text>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </View>
                   ) : (
                     <Text className="text-red-400 text-base font-bold font-manropeBold">
                       -${splitAmount.toFixed(2)}
                     </Text>
                   )}
-                  {userOwes && (
+                  {isCurrentUser && memberOwes && (
                     <TouchableOpacity
                       onPress={() => {
+                        // Get the actual amount owed to this payer from pair balances
+                        const pairBalance = pairBalances?.find(
+                          (b) => b.userId === paidById,
+                        );
+                        const actualAmountOwed = pairBalance
+                          ? Math.abs(pairBalance.balance).toFixed(2)
+                          : splitAmount.toFixed(2);
+
                         router.push({
                           pathname: "/(app)/expense/SettlementCreate",
                           params: {
                             groupId: groupId,
                             paidTo: paidById,
-                            amount: splitAmount.toFixed(2),
+                            amount: actualAmountOwed,
                           },
                         });
                       }}
