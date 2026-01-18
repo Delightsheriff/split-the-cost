@@ -99,6 +99,9 @@ export function useCreateSettlement() {
         queryKey: groupKeys.detail(variables.groupId),
       });
       queryClient.invalidateQueries({
+        queryKey: groupKeys.all,
+      });
+      queryClient.invalidateQueries({
         queryKey: settlementKeys.byGroup(variables.groupId),
       });
     },
