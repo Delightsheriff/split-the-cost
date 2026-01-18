@@ -39,6 +39,15 @@ export default function AppStackLayout() {
           headerBackTitle: "Back",
         }}
       />
+      <Stack.Screen
+        name="expense/SettlementCreate"
+        options={{
+          title: "Settle Payment",
+          headerShown: true,
+          presentation: "modal", // Modal presentation
+          headerBackTitle: "Back",
+        }}
+      />
     </Stack>
   );
 }
