@@ -84,12 +84,12 @@ const CreateExpense = () => {
       >
         {/* Amount Section */}
         <View className="px-6 py-8 items-center border-b border-white/5">
-          <View className="flex-row items-center">
+          <View className="flex-row items-center p-2">
             <Text className="text-slate-400 text-5xl font-manropeBold mr-2">
               $
             </Text>
             <TextInput
-              className="text-white text-6xl font-manropeBold min-w-[120px]"
+              className="text-white text-6xl font-manropeBold min-w-[120px] "
               placeholder="0.00"
               placeholderTextColor="#334155"
               keyboardType="decimal-pad"
