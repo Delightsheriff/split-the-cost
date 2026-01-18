@@ -27,7 +27,6 @@ export default function GroupDetails() {
   const { user } = useAuth();
 
   const [showBalancesModal, setShowBalancesModal] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<any>(null);
 
   const { data: group, isLoading: groupLoading } = useGroup(id);
   const { data: expenses, isLoading: expensesLoading } = useGroupExpenses(id);
@@ -61,14 +60,44 @@ export default function GroupDetails() {
       (m: any) => m._id === user?._id
     );
 
-    const youOwe = !userPaid && userIsInSplit ? splitAmount : 0;
-    const youGet = userPaid
-      ? item.amount - (userIsInSplit ? splitAmount : 0)
-      : 0;
+    // Check pairwise balance with payer to see if user actually owes them
+    const payerId = item.paidBy._id;
+    const pairBalanceWithPayer = pairBalances?.find(
+      (b) => b.userId === payerId
+    );
+    const actuallyOwePayer =
+      pairBalanceWithPayer && pairBalanceWithPayer.balance < 0;
+
+    // Only show "You owe" if user is in split, didn't pay, and still owes the payer overall
+    const youOwe =
+      !userPaid && userIsInSplit && actuallyOwePayer ? splitAmount : 0;
+
+    // For "You get", check if anyone still owes the user
+    let youGet = 0;
+    if (userPaid) {
+      const totalOwed = item.splitBetween
+        .filter((m: any) => m._id !== user?._id)
+        .reduce((sum: number, member: any) => {
+          const pairBalance = pairBalances?.find(
+            (b) => b.userId === member._id
+          );
+          // If they still owe the user (positive balance), include their split
+          if (pairBalance && pairBalance.balance > 0) {
+            return sum + splitAmount;
+          }
+          return sum;
+        }, 0);
+      youGet = totalOwed;
+    }
 
     return (
       <TouchableOpacity
-        onPress={() => setSelectedExpense(item)}
+        onPress={() =>
+          router.push({
+            pathname: "/(app)/expense/[id]",
+            params: { id: item._id, groupId: id },
+          })
+        }
         className="bg-surface-dark rounded-xl p-4 border border-white/5 mx-6 mb-3 active:border-white/20"
       >
         <View className="flex-row items-center gap-3">
@@ -270,119 +299,6 @@ export default function GroupDetails() {
             )}
           </ScrollView>
         </View>
-      </Modal>
-
-      {/* Expense Detail Modal */}
-      <Modal
-        visible={!!selectedExpense}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedExpense(null)}
-      >
-        {selectedExpense && (
-          <View className="flex-1 bg-background-dark">
-            <View className="px-6 py-6 border-b border-white/5 flex-row items-center justify-between">
-              <TouchableOpacity onPress={() => setSelectedExpense(null)}>
-                <Text className="text-primary text-lg font-manropeBold">
-                  Close
-                </Text>
-              </TouchableOpacity>
-              <Text className="text-white text-xl font-manropeBold">
-                Details
-              </Text>
-              <View style={{ width: 60 }} />
-            </View>
-
-            <ScrollView className="flex-1 px-6 py-8">
-              <View className="items-center mb-8">
-                <ExpenseIcon type={selectedExpense.type} />
-                <Text className="text-5xl font-extrabold text-white mt-4 font-manropeBold">
-                  ${selectedExpense.amount.toFixed(2)}
-                </Text>
-                <Text className="text-slate-400 text-lg font-manrope mt-1">
-                  {selectedExpense.description}
-                </Text>
-              </View>
-
-              <View className="py-4 border-b border-white/5 flex-row justify-between">
-                <Text className="text-slate-400 font-manrope">Paid by</Text>
-                <Text className="text-white font-manropeBold">
-                  {selectedExpense.paidBy._id === user?._id
-                    ? "You"
-                    : selectedExpense.paidBy.name}
-                </Text>
-              </View>
-
-              <View className="py-4 border-b border-white/5">
-                <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
-                  Split Between
-                </Text>
-                {selectedExpense.splitBetween.map((member: any) => {
-                  const splitAmount =
-                    selectedExpense.amount /
-                    selectedExpense.splitBetween.length;
-                  const paidById = selectedExpense.paidBy._id;
-                  const memberId = member._id;
-                  const isPayer = paidById === memberId;
-                  const isCurrentUser = memberId === user?._id;
-                  const userOwes = !isPayer && isCurrentUser;
-
-                  return (
-                    <View
-                      key={member._id}
-                      className="flex-row items-center justify-between py-3 border-b border-white/5 last:border-b-0"
-                    >
-                      <View className="flex-1">
-                        <View className="flex-row items-center gap-2">
-                          <Text className="text-white font-manropeBold">
-                            {member.name}
-                            {isCurrentUser && " (You)"}
-                          </Text>
-                        </View>
-                        <Text className="text-slate-400 text-xs font-manrope mt-1">
-                          {isPayer
-                            ? "Paid their share"
-                            : `Owes $${splitAmount.toFixed(2)}`}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        {isPayer ? (
-                          <Text className="text-primary text-base font-bold font-manropeBold">
-                            +${splitAmount.toFixed(2)}
-                          </Text>
-                        ) : (
-                          <Text className="text-red-400 text-base font-bold font-manropeBold">
-                            -${splitAmount.toFixed(2)}
-                          </Text>
-                        )}
-                        {userOwes && (
-                          <TouchableOpacity
-                            onPress={() => {
-                              setSelectedExpense(null);
-                              router.push({
-                                pathname: "/(app)/expense/SettlementCreate",
-                                params: {
-                                  groupId: id,
-                                  paidTo: paidById,
-                                  amount: splitAmount.toFixed(2),
-                                },
-                              });
-                            }}
-                            className="bg-primary px-4 py-2 rounded-lg mt-2"
-                          >
-                            <Text className="text-background-dark text-xs font-manropeBold">
-                              Settle Up
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </ScrollView>
-          </View>
-        )}
       </Modal>
     </View>
   );

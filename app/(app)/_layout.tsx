@@ -40,11 +40,20 @@ export default function AppStackLayout() {
         }}
       />
       <Stack.Screen
+        name="expense/[id]"
+        options={{
+          title: "Expense Details",
+          headerShown: true,
+          presentation: "card",
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
         name="expense/SettlementCreate"
         options={{
-          title: "Settle Payment",
+          title: "Settle Up",
           headerShown: true,
-          presentation: "modal", // Modal presentation
+          presentation: "card",
           headerBackTitle: "Back",
         }}
       />
