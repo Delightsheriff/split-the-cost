@@ -24,11 +24,13 @@
 //   const { user } = useAuth();
 //   const [showBalancesModal, setShowBalancesModal] = useState(false);
 
-//   const { data: group, isLoading: groupLoading } = useGroup(id);
-//   const { data: expenses, isLoading: expensesLoading } = useGroupExpenses(id);
-//   const { data: pairBalances } = usePairBalances(id, user?._id || "");
+//   const { data: group, isLoading: groupLoading } = useGroup(id || "");
+//   const { data: expenses, isLoading: expensesLoading } = useGroupExpenses(
+//     id || "",
+//   );
+//   const { data: pairBalances } = usePairBalances(id || "", user?._id || "");
 
-//   if (groupLoading || expensesLoading) {
+//   if (groupLoading || expensesLoading || !group) {
 //     return (
 //       <View className="flex-1 bg-background-dark items-center justify-center">
 //         <ActivityIndicator size="large" color="#13ec5b" />
@@ -36,21 +38,22 @@
 //     );
 //   }
 
-//   if (!group) return null;
+//   const userState = group.currentUserState || {
+//     balance: 0,
+//     isOwed: false,
+//     isSettled: true,
+//   };
+//   const balanceAmount = Math.abs(userState.balance).toFixed(2);
 
-//   const { balance, isOwed, isSettled } = group.currentUserState;
-//   const balanceAmount = Math.abs(balance).toFixed(2);
-
-//   const membersWhoOweMe = pairBalances?.filter((b) => b.balance > 0) || [];
-//   const membersIOwe = pairBalances?.filter((b) => b.balance < 0) || [];
+//   const membersWhoOweMe =
+//     pairBalances?.filter((b) => b && b.balance > 0.01) || [];
+//   const membersIOwe = pairBalances?.filter((b) => b && b.balance < -0.01) || [];
 
 //   const renderExpenseItem = ({ item }: { item: any }) => {
-//     const userPaid = item.paidBy._id === user?._id;
-//     const payerId = item.paidBy._id;
-
-//     // Check if user still has a debt/credit with THIS specific payer
-//     const pairInfo = pairBalances?.find((p) => p.userId === payerId);
-//     const hasActivePairBalance = pairInfo && Math.abs(pairInfo.balance) > 0.01;
+//     if (!item) return null;
+//     const userPaid = item.paidBy?._id === user?._id;
+//     const pairInfo = pairBalances?.find((p) => p?.userId === item.paidBy?._id);
+//     const isActuallySettled = !pairInfo || Math.abs(pairInfo.balance) < 0.01;
 
 //     return (
 //       <TouchableOpacity
@@ -65,24 +68,18 @@
 //         <View className="flex-row items-center gap-3">
 //           <ExpenseIcon type={item.type} />
 //           <View className="flex-1">
-//             <Text className="text-white text-base font-semibold font-manrope mb-1">
+//             <Text className="text-white text-base font-semibold font-manrope">
 //               {item.description}
 //             </Text>
-//             <Text className="text-slate-400 text-xs font-medium font-manrope">
-//               Paid by {userPaid ? "You" : item.paidBy.name} •{" "}
-//               {new Date(item.date).toLocaleDateString("en-US", {
-//                 month: "short",
-//                 day: "numeric",
-//               })}
+//             <Text className="text-slate-400 text-xs font-manrope">
+//               Paid by {userPaid ? "You" : item.paidBy?.name}
 //             </Text>
 //           </View>
 //           <View className="items-end">
-//             <Text className="text-white text-lg font-bold font-manropeBold mb-1">
+//             <Text className="text-white text-lg font-bold font-manropeBold">
 //               ${item.amount.toFixed(2)}
 //             </Text>
-
-//             {/* Logic: If pairwise balance is 0, it is settled even if you were in the split */}
-//             {!hasActivePairBalance ? (
+//             {isActuallySettled ? (
 //               <Text className="text-slate-500 text-xs font-bold font-manrope">
 //                 Settled
 //               </Text>
@@ -109,22 +106,14 @@
 //         keyExtractor={(item) => item._id}
 //         renderItem={renderExpenseItem}
 //         ListHeaderComponent={
-//           <>
-//             <BalanceCard
-//               amount={balanceAmount}
-//               isOwed={isOwed}
-//               userBalance={balance}
-//               onPress={() => setShowBalancesModal(true)}
-//             />
-//             <View className="px-6 py-4">
-//               <Text className="text-white text-xl font-bold font-manropeBold">
-//                 Expenses
-//               </Text>
-//             </View>
-//           </>
+//           <BalanceCard
+//             amount={balanceAmount}
+//             isOwed={userState.isOwed}
+//             userBalance={userState.balance}
+//             onPress={() => setShowBalancesModal(true)}
+//           />
 //         }
 //         contentContainerStyle={{ paddingBottom: 120 }}
-//         showsVerticalScrollIndicator={false}
 //       />
 //       <Pressable
 //         onPress={() =>
@@ -142,7 +131,6 @@
 //         visible={showBalancesModal}
 //         animationType="slide"
 //         presentationStyle="pageSheet"
-//         onRequestClose={() => setShowBalancesModal(false)}
 //       >
 //         <View className="flex-1 bg-background-dark">
 //           <View className="px-6 py-6 border-b border-white/5 flex-row items-center justify-between">
@@ -159,20 +147,13 @@
 //           <ScrollView className="flex-1">
 //             <View className="px-6 py-10 items-center border-b border-white/5">
 //               <Text className="text-slate-400 text-xs uppercase font-manrope mb-2">
-//                 Total Net Balance
+//                 Net Balance
 //               </Text>
 //               <Text
-//                 className={`text-5xl font-extrabold font-manropeBold ${isSettled ? "text-slate-400" : isOwed ? "text-primary" : "text-red-400"}`}
+//                 className={`text-5xl font-extrabold font-manropeBold ${userState.isSettled ? "text-slate-400" : userState.isOwed ? "text-primary" : "text-red-400"}`}
 //               >
 //                 ${balanceAmount}
 //               </Text>
-//               {isSettled && (
-//                 <View className="mt-2 bg-primary/10 px-4 py-1 rounded-full">
-//                   <Text className="text-primary text-sm font-manropeBold">
-//                     All settled up! 🎉
-//                   </Text>
-//                 </View>
-//               )}
 //             </View>
 //             <View className="px-6 py-4">
 //               {membersIOwe.map((member) => (
@@ -181,12 +162,10 @@
 //                   className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
 //                 >
 //                   <View className="flex-1">
-//                     <Text className="text-white text-base font-semibold font-manrope">
+//                     <Text className="text-white text-base font-semibold">
 //                       {member.name}
 //                     </Text>
-//                     <Text className="text-slate-400 text-xs font-manrope">
-//                       You owe
-//                     </Text>
+//                     <Text className="text-slate-400 text-xs">You owe</Text>
 //                   </View>
 //                   <TouchableOpacity
 //                     onPress={() => {
@@ -200,7 +179,7 @@
 //                         },
 //                       });
 //                     }}
-//                     className="bg-primary px-4 py-2 rounded-lg active:opacity-80"
+//                     className="bg-primary px-4 py-2 rounded-lg"
 //                   >
 //                     <Text className="text-background-dark text-xs font-manropeBold">
 //                       Settle ${Math.abs(member.balance).toFixed(2)}
@@ -214,12 +193,10 @@
 //                   className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
 //                 >
 //                   <View className="flex-1">
-//                     <Text className="text-white text-base font-semibold font-manrope">
+//                     <Text className="text-white text-base font-semibold">
 //                       {member.name}
 //                     </Text>
-//                     <Text className="text-slate-400 text-xs font-manrope">
-//                       Owes you
-//                     </Text>
+//                     <Text className="text-slate-400 text-xs">Owes you</Text>
 //                   </View>
 //                   <Text className="text-primary text-lg font-bold font-manropeBold">
 //                     ${member.balance.toFixed(2)}
@@ -254,20 +231,21 @@ import {
   View,
 } from "react-native";
 
+// Floating point safe comparison
+const SETTLEMENT_THRESHOLD = 0.01;
+
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const [showBalancesModal, setShowBalancesModal] = useState(false);
 
-  // Fetching data
   const { data: group, isLoading: groupLoading } = useGroup(id || "");
   const { data: expenses, isLoading: expensesLoading } = useGroupExpenses(
     id || "",
   );
   const { data: pairBalances } = usePairBalances(id || "", user?._id || "");
 
-  // 1. Loading State: Prevents reading properties of undefined
   if (groupLoading || expensesLoading || !group) {
     return (
       <View className="flex-1 bg-background-dark items-center justify-center">
@@ -276,29 +254,24 @@ export default function GroupDetails() {
     );
   }
 
-  // 2. Safe Data Extraction: Fallbacks prevent the "Cannot read property balance of undefined" error
-  const userState = group?.currentUserState || {
+  const userState = group.currentUserState || {
     balance: 0,
     isOwed: false,
     isSettled: true,
   };
   const balanceAmount = Math.abs(userState.balance).toFixed(2);
 
-  // Safely filter pair balances
-  const membersWhoOweMe = pairBalances?.filter((b) => b && b.balance > 0) || [];
-  const membersIOwe = pairBalances?.filter((b) => b && b.balance < 0) || [];
+  const membersWhoOweMe =
+    pairBalances?.filter((b) => b && b.balance > SETTLEMENT_THRESHOLD) || [];
+  const membersIOwe =
+    pairBalances?.filter((b) => b && b.balance < -SETTLEMENT_THRESHOLD) || [];
 
   const renderExpenseItem = ({ item }: { item: any }) => {
     if (!item) return null;
-
     const userPaid = item.paidBy?._id === user?._id;
-    const payerId = item.paidBy?._id;
-
-    // Use pairBalances to determine if the specific debt with this payer is cleared
-    const pairInfo = pairBalances?.find((p) => p?.userId === payerId);
-
-    // Check for settlement: if no pair debt exists or it's negligible (floating point safety)
-    const isActuallySettled = !pairInfo || Math.abs(pairInfo.balance) < 0.01;
+    const pairInfo = pairBalances?.find((p) => p?.userId === item.paidBy?._id);
+    const isActuallySettled =
+      !pairInfo || Math.abs(pairInfo.balance) < SETTLEMENT_THRESHOLD;
 
     return (
       <TouchableOpacity
@@ -313,20 +286,16 @@ export default function GroupDetails() {
         <View className="flex-row items-center gap-3">
           <ExpenseIcon type={item.type} />
           <View className="flex-1">
-            <Text className="text-white text-base font-semibold font-manrope mb-1">
+            <Text className="text-white text-base font-semibold font-manrope">
               {item.description}
             </Text>
-            <Text className="text-slate-400 text-xs font-medium font-manrope">
-              Paid by {userPaid ? "You" : item.paidBy?.name || "Unknown"} •{" "}
-              {new Date(item.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+            <Text className="text-slate-400 text-xs font-manrope">
+              Paid by {userPaid ? "You" : item.paidBy?.name}
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-white text-lg font-bold font-manropeBold mb-1">
-              ${(item.amount || 0).toFixed(2)}
+            <Text className="text-white text-lg font-bold font-manropeBold">
+              ${item.amount.toFixed(2)}
             </Text>
             {isActuallySettled ? (
               <Text className="text-slate-500 text-xs font-bold font-manrope">
@@ -338,7 +307,7 @@ export default function GroupDetails() {
               </Text>
             ) : (
               <Text className="text-red-400 text-xs font-bold font-manrope">
-                You borrow
+                You owe
               </Text>
             )}
           </View>
@@ -349,37 +318,21 @@ export default function GroupDetails() {
 
   return (
     <View className="flex-1 bg-background-dark">
-      <Stack.Screen options={{ title: group.name || "Group Details" }} />
+      <Stack.Screen options={{ title: group.name }} />
       <FlatList
         data={expenses}
-        keyExtractor={(item) => item?._id}
+        keyExtractor={(item) => item._id}
         renderItem={renderExpenseItem}
         ListHeaderComponent={
-          <>
-            <BalanceCard
-              amount={balanceAmount}
-              isOwed={userState.isOwed}
-              userBalance={userState.balance}
-              onPress={() => setShowBalancesModal(true)}
-            />
-            <View className="px-6 py-4">
-              <Text className="text-white text-xl font-bold font-manropeBold">
-                Expenses
-              </Text>
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          <View className="py-20 items-center">
-            <Text className="text-slate-500 font-manrope">
-              No expenses recorded yet.
-            </Text>
-          </View>
+          <BalanceCard
+            amount={balanceAmount}
+            isOwed={userState.isOwed}
+            userBalance={userState.balance}
+            onPress={() => setShowBalancesModal(true)}
+          />
         }
         contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
       />
-
       <Pressable
         onPress={() =>
           router.push({
@@ -396,7 +349,6 @@ export default function GroupDetails() {
         visible={showBalancesModal}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setShowBalancesModal(false)}
       >
         <View className="flex-1 bg-background-dark">
           <View className="px-6 py-6 border-b border-white/5 flex-row items-center justify-between">
@@ -413,73 +365,85 @@ export default function GroupDetails() {
           <ScrollView className="flex-1">
             <View className="px-6 py-10 items-center border-b border-white/5">
               <Text className="text-slate-400 text-xs uppercase font-manrope mb-2">
-                Total Net Balance
+                Net Balance
               </Text>
               <Text
                 className={`text-5xl font-extrabold font-manropeBold ${userState.isSettled ? "text-slate-400" : userState.isOwed ? "text-primary" : "text-red-400"}`}
               >
                 ${balanceAmount}
               </Text>
-              {userState.isSettled && (
-                <View className="mt-2 bg-primary/10 px-4 py-1 rounded-full">
-                  <Text className="text-primary text-sm font-manropeBold">
+            </View>
+            <View className="px-6 py-4">
+              {membersIOwe.length > 0 && (
+                <View className="mb-6">
+                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
+                    You Owe
+                  </Text>
+                  {membersIOwe.map((member) => (
+                    <View
+                      key={member.userId}
+                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
+                    >
+                      <View className="flex-1">
+                        <Text className="text-white text-base font-semibold">
+                          {member.name}
+                        </Text>
+                        <Text className="text-slate-400 text-xs">You owe</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowBalancesModal(false);
+                          router.push({
+                            pathname: "/(app)/expense/SettlementCreate",
+                            params: {
+                              groupId: id,
+                              paidTo: member.userId,
+                              amount: Math.abs(member.balance).toFixed(2),
+                            },
+                          });
+                        }}
+                        className="bg-primary px-4 py-2 rounded-lg"
+                      >
+                        <Text className="text-background-dark text-xs font-manropeBold">
+                          Settle ${Math.abs(member.balance).toFixed(2)}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {membersWhoOweMe.length > 0 && (
+                <View>
+                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
+                    Owes You
+                  </Text>
+                  {membersWhoOweMe.map((member) => (
+                    <View
+                      key={member.userId}
+                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
+                    >
+                      <View className="flex-1">
+                        <Text className="text-white text-base font-semibold">
+                          {member.name}
+                        </Text>
+                        <Text className="text-slate-400 text-xs">Owes you</Text>
+                      </View>
+                      <Text className="text-primary text-lg font-bold font-manropeBold">
+                        ${member.balance.toFixed(2)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {membersIOwe.length === 0 && membersWhoOweMe.length === 0 && (
+                <View className="items-center py-12">
+                  <Text className="text-slate-500 text-base font-manrope">
                     All settled up! 🎉
                   </Text>
                 </View>
               )}
-            </View>
-            <View className="px-6 py-4">
-              {membersIOwe.map((member) => (
-                <View
-                  key={member.userId}
-                  className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                >
-                  <View className="flex-1">
-                    <Text className="text-white text-base font-semibold font-manrope">
-                      {member.name}
-                    </Text>
-                    <Text className="text-slate-400 text-xs font-manrope">
-                      You owe
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setShowBalancesModal(false);
-                      router.push({
-                        pathname: "/(app)/expense/SettlementCreate",
-                        params: {
-                          groupId: id,
-                          paidTo: member.userId,
-                          amount: Math.abs(member.balance).toFixed(2),
-                        },
-                      });
-                    }}
-                    className="bg-primary px-4 py-2 rounded-lg"
-                  >
-                    <Text className="text-background-dark text-xs font-manropeBold">
-                      Settle ${Math.abs(member.balance).toFixed(2)}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {membersWhoOweMe.map((member) => (
-                <View
-                  key={member.userId}
-                  className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                >
-                  <View className="flex-1">
-                    <Text className="text-white text-base font-semibold font-manrope">
-                      {member.name}
-                    </Text>
-                    <Text className="text-slate-400 text-xs font-manrope">
-                      Owes you
-                    </Text>
-                  </View>
-                  <Text className="text-primary text-lg font-bold font-manropeBold">
-                    ${member.balance.toFixed(2)}
-                  </Text>
-                </View>
-              ))}
             </View>
           </ScrollView>
         </View>

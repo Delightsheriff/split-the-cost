@@ -29,18 +29,18 @@
 //   const { data: group, isLoading: groupLoading } = useGroup(groupId);
 //   const createSettlement = useCreateSettlement();
 
-//   const [amount, setAmount] = useState(initialAmount || "");
+//   // amount is initialized and kept static as per your requirement
+//   const [amount] = useState(initialAmount || "");
+//   const [note] = useState("");
 
 //   const paidToMember = group?.members.find((m) => m._id === paidTo);
 //   const isSubmitting = createSettlement.isPending;
 
 //   const handleSubmit = async () => {
-//     if (!amount || parseFloat(amount) <= 0) {
-//       Alert.alert("Error", "Please enter a valid amount");
-//       return;
-//     }
+//     if (!amount || parseFloat(amount) <= 0) return;
 
 //     try {
+//       // Execution waits for backend resolution
 //       await createSettlement.mutateAsync({
 //         groupId,
 //         paidTo,
@@ -48,12 +48,10 @@
 //         note: note.trim() || undefined,
 //       });
 
-//       Alert.alert("Success", "Payment recorded!", [
-//         { text: "OK", onPress: () => router.back() },
-//       ]);
+//       // Navigate back only after successful resolution
+//       router.back();
 //     } catch (error) {
-//       Alert.alert("Error", "Failed to record payment");
-//       console.error(error);
+//       Alert.alert("Error", "Failed to record payment. Please try again.");
 //     }
 //   };
 
@@ -80,7 +78,6 @@
 //         showsVerticalScrollIndicator={false}
 //       >
 //         <View className="px-6 py-8">
-//           {/* Recipient Section */}
 //           <View className="items-center mb-10">
 //             <View className="relative mb-4">
 //               <UserAvatar
@@ -88,7 +85,6 @@
 //                 avatar={paidToMember.avatar}
 //                 size="lg"
 //               />
-//               {/* Checkmark Overlay */}
 //               <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary items-center justify-center border-2 border-background-dark">
 //                 <Check size={14} color="#0d1a0f" strokeWidth={3} />
 //               </View>
@@ -101,7 +97,6 @@
 //             </Text>
 //           </View>
 
-//           {/* Amount Section */}
 //           <View className="items-center mb-10">
 //             <View className="flex-row items-center">
 //               <Text className="text-slate-400 text-5xl font-manropeBold mr-2">
@@ -109,18 +104,16 @@
 //               </Text>
 //               <TextInput
 //                 className="text-white text-6xl font-manropeBold min-w-[150px]"
-//                 placeholder="0.00"
-//                 placeholderTextColor="#334155"
-//                 keyboardType="decimal-pad"
 //                 value={amount}
-//                 onChangeText={setAmount}
-//                 editable={!isSubmitting}
-//                 autoFocus
+//                 editable={false} // Amount locked as requested
+//                 pointerEvents="none"
 //               />
 //             </View>
+//             <Text className="text-slate-500 text-xs font-manrope mt-2">
+//               Fixed total debt amount
+//             </Text>
 //           </View>
 
-//           {/* Date Field */}
 //           <View className="mb-6">
 //             <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-2">
 //               Date
@@ -135,10 +128,8 @@
 //         </View>
 //       </ScrollView>
 
-//       {/* Action Buttons */}
 //       <View className="px-6 pb-8 pt-4 border-t border-white/5 bg-background-dark">
 //         <View className="flex-row gap-3">
-//           {/* Cancel Button */}
 //           <TouchableOpacity
 //             onPress={() => router.back()}
 //             disabled={isSubmitting}
@@ -149,14 +140,11 @@
 //             </Text>
 //           </TouchableOpacity>
 
-//           {/* Mark as Paid Button */}
 //           <TouchableOpacity
 //             onPress={handleSubmit}
-//             disabled={!amount || parseFloat(amount) <= 0 || isSubmitting}
+//             disabled={isSubmitting}
 //             className={`flex-1 rounded-xl py-4 items-center flex-row justify-center ${
-//               !amount || parseFloat(amount) <= 0 || isSubmitting
-//                 ? "bg-slate-700"
-//                 : "bg-primary"
+//               isSubmitting ? "bg-slate-700" : "bg-primary"
 //             }`}
 //           >
 //             {isSubmitting ? (
@@ -165,7 +153,7 @@
 //               <>
 //                 <Check size={20} color="#0d1a0f" strokeWidth={3} />
 //                 <Text className="text-[#0d1a0f] text-base font-manropeBold ml-2">
-//                   Mark as Paid
+//                   Confirm Payment
 //                 </Text>
 //               </>
 //             )}
@@ -215,10 +203,13 @@ export default function SettlementCreate() {
   const isSubmitting = createSettlement.isPending;
 
   const handleSubmit = async () => {
-    if (!amount || parseFloat(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid amount");
+      return;
+    }
 
     try {
-      // Execution waits for backend resolution
+      // Wait for the mutation to complete
       await createSettlement.mutateAsync({
         groupId,
         paidTo,
@@ -226,10 +217,34 @@ export default function SettlementCreate() {
         note: note.trim() || undefined,
       });
 
+      // Add a small delay to ensure queries have started refetching
+      // This prevents the race condition where we navigate before data updates
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       // Navigate back only after successful resolution
       router.back();
-    } catch (error) {
-      Alert.alert("Error", "Failed to record payment. Please try again.");
+    } catch (error: any) {
+      // More specific error handling based on backend responses
+      const errorMessage =
+        error?.message || "Failed to record payment. Please try again.";
+
+      if (errorMessage.includes("Cannot settle more than you owe")) {
+        Alert.alert("Overpayment Detected", errorMessage, [{ text: "OK" }]);
+      } else if (errorMessage.includes("Too many settlement attempts")) {
+        Alert.alert(
+          "Rate Limit Exceeded",
+          "Please wait a moment before trying again.",
+          [{ text: "OK" }],
+        );
+      } else if (errorMessage.includes("don't owe this person")) {
+        Alert.alert(
+          "Invalid Settlement",
+          "You don't owe money to this person. They owe you.",
+          [{ text: "OK" }],
+        );
+      } else {
+        Alert.alert("Error", errorMessage);
+      }
     }
   };
 
@@ -241,7 +256,15 @@ export default function SettlementCreate() {
     );
   }
 
-  if (!group || !paidToMember) return null;
+  if (!group || !paidToMember) {
+    return (
+      <View className="flex-1 bg-background-dark items-center justify-center">
+        <Text className="text-white text-base font-manrope">
+          Group or member not found
+        </Text>
+      </View>
+    );
+  }
 
   const formattedDate = new Date().toLocaleDateString("en-US", {
     month: "short",
