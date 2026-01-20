@@ -1,39 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Expense } from "../types";
 import { apiRequest } from "./client";
 import { groupKeys } from "./group.service";
-import { balanceKeys } from "./settlement.service";
-
-export const expenseKeys = {
-  all: ["expenses"] as const,
-  byGroup: (groupId: string) => [...expenseKeys.all, "group", groupId] as const,
-};
-
-export function useGroupExpenses(groupId: string) {
-  return useQuery({
-    queryKey: expenseKeys.byGroup(groupId),
-    queryFn: () => apiRequest<any[]>(`/api/expenses/group/${groupId}`),
-    enabled: !!groupId,
-  });
-}
 
 export function useCreateExpense() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: any) =>
-      apiRequest<any>("/api/expenses", {
+    mutationFn: (data: {
+      groupId: string;
+      description: string;
+      amount: number;
+      type: "food" | "transport" | "supplies" | "fuel" | "other";
+      paidBy: string;
+      splitBetween: string[];
+    }) =>
+      apiRequest<Expense>("/api/expenses", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: (_, variables) => {
-      // Invalidate everything related to this group
+      // Invalidate group details to refresh balances and expenses
       queryClient.invalidateQueries({
-        queryKey: expenseKeys.byGroup(variables.groupId),
+        queryKey: groupKeys.detail(variables.groupId),
       });
-      queryClient.invalidateQueries({
-        queryKey: balanceKeys.byGroup(variables.groupId),
-      });
-      queryClient.invalidateQueries({ queryKey: groupKeys.all });
+      queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
     },
   });
 }

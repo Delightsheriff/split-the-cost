@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import onboardingData from "../../../src/services/data";
+import onboardingData from "../../../src/services/onboardingData";
 
 const Onboarding = () => {
   const router = useRouter();
@@ -31,7 +31,7 @@ const Onboarding = () => {
         setCurrentIndex(viewableItems[0].index);
       }
     },
-    []
+    [],
   );
 
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
@@ -104,7 +104,7 @@ const Onboarding = () => {
           keyExtractor={(item) => item.id.toString()}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: false }
+            { useNativeDriver: false },
           )}
           scrollEventThrottle={16}
           onViewableItemsChanged={viewableItemsChanged}

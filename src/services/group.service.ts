@@ -1,31 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Group, GroupDetails } from "../types";
 import { apiRequest } from "./client";
-
-export type GroupMember = {
-  _id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-};
-
-export type Group = {
-  _id: string;
-  name: string;
-  members: GroupMember[];
-  invitedEmails: string[];
-  createdBy: string;
-  lastActivity: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type GroupDetail = Group & {
-  currentUserState: {
-    balance: number;
-    isOwed: boolean;
-    isSettled: boolean;
-  };
-};
 
 export const groupKeys = {
   all: ["groups"] as const,
@@ -41,10 +16,10 @@ export function useGroups() {
   });
 }
 
-export function useGroup(groupId: string) {
+export function useGroupDetails(groupId: string) {
   return useQuery({
     queryKey: groupKeys.detail(groupId),
-    queryFn: () => apiRequest<GroupDetail>(`/api/groups/${groupId}`),
+    queryFn: () => apiRequest<GroupDetails>(`/api/groups/${groupId}/details`),
     enabled: !!groupId,
   });
 }
