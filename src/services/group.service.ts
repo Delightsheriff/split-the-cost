@@ -21,6 +21,7 @@ export function useGroupDetails(groupId: string) {
     queryKey: groupKeys.detail(groupId),
     queryFn: () => apiRequest<GroupDetails>(`/api/groups/${groupId}/details`),
     enabled: !!groupId,
+    staleTime: 0, // Always consider data stale to allow immediate refetches
   });
 }
 

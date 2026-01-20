@@ -4,7 +4,7 @@ import ExpenseTypeModal, {
 import MemberSelectRow from "@/src/components/ui/MemberSelectRow";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useCreateExpense } from "@/src/services/expense.service";
-import { useGroup } from "@/src/services/group.service";
+import { useGroupDetails } from "@/src/services/group.service";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, User } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ const CreateExpense = () => {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { data: group, isLoading: groupLoading } = useGroup(groupId);
+  const { data: group, isLoading: groupLoading } = useGroupDetails(groupId);
   const createExpense = useCreateExpense();
 
   const [amount, setAmount] = useState("");
@@ -33,7 +33,7 @@ const CreateExpense = () => {
 
   useEffect(() => {
     if (group && user && selectedMembers.length === 0) {
-      setSelectedMembers(group.members.map((m) => m._id));
+      setSelectedMembers(group.group.members.map((m) => m._id));
     }
   }, [group, selectedMembers.length, user]);
 
@@ -160,7 +160,7 @@ const CreateExpense = () => {
           <Text className="text-slate-400 text-xs uppercase font-manrope mb-3">
             Split Between
           </Text>
-          {group.members.map((member) => (
+          {group.group.members.map((member) => (
             <MemberSelectRow
               key={member._id}
               member={member}

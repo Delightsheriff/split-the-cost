@@ -25,6 +25,16 @@ export function useCreateExpense() {
         queryKey: groupKeys.detail(variables.groupId),
       });
       queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+
+      // Also invalidate all group-related queries to ensure fresh data
+      queryClient.invalidateQueries({
+        queryKey: groupKeys.details(),
+      });
+
+      // Force refetch the specific group details immediately
+      queryClient.refetchQueries({
+        queryKey: groupKeys.detail(variables.groupId),
+      });
     },
   });
 }
