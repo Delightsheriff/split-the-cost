@@ -41,13 +41,18 @@ export default function SettlementCreate() {
     }
 
     try {
-      await createSettlement.mutateAsync({
-        groupId,
-        paidTo,
-        amount: parseFloat(amount),
-      });
-
-      router.back();
+      await createSettlement.mutateAsync(
+        {
+          groupId,
+          paidTo,
+          amount: parseFloat(amount),
+        },
+        {
+          onSuccess: () => {
+            router.back();
+          },
+        },
+      );
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to record payment";
 
