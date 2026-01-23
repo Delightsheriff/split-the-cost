@@ -49,15 +49,21 @@ const CreateExpense = () => {
       return;
     }
     try {
-      await createExpense.mutateAsync({
-        groupId,
-        description,
-        amount: parseFloat(amount),
-        type: expenseType,
-        paidBy: user?._id || "",
-        splitBetween: selectedMembers,
-      });
-      router.back();
+      await createExpense.mutateAsync(
+        {
+          groupId,
+          description,
+          amount: parseFloat(amount),
+          type: expenseType,
+          paidBy: user?._id || "",
+          splitBetween: selectedMembers,
+        },
+        {
+          onSuccess: () => {
+            router.back();
+          },
+        },
+      );
     } catch (error) {
       Alert.alert("Error", "Failed to create expense");
       console.error(error);

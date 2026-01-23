@@ -13,9 +13,9 @@ export function useGroups() {
   return useQuery({
     queryKey: groupKeys.lists(),
     queryFn: () => apiRequest<Group[]>("/api/groups"),
-    staleTime: 0, // Always consider data stale for immediate updates
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when app comes back to focus
+    staleTime: 30_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -24,10 +24,9 @@ export function useGroupDetails(groupId: string) {
     queryKey: groupKeys.detail(groupId),
     queryFn: () => apiRequest<GroupDetails>(`/api/groups/${groupId}/details`),
     enabled: !!groupId,
-    staleTime: 0, // Always consider data stale to allow immediate refetches
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when app comes back to focus
-    refetchInterval: false, // Disable automatic polling to avoid unnecessary requests
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 

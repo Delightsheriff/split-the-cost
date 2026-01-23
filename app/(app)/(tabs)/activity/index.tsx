@@ -1,6 +1,6 @@
 import { Activity, useActivities } from "@/src/services/activity.service";
-import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -80,7 +80,17 @@ export default function ActivityScreen() {
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState("All");
 
-  const { data: activities = [], isLoading } = useActivities(selectedFilter);
+  const {
+    data: activities = [],
+    isLoading,
+    refetch,
+  } = useActivities(selectedFilter);
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const flattenedData = useMemo(() => {
     const grouped = activities.reduce(

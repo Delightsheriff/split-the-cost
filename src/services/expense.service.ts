@@ -19,31 +19,16 @@ export function useCreateExpense() {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    onSuccess: async (_, variables) => {
-      // First, remove any stale data from cache to prevent showing old data
-      queryClient.removeQueries({
+    onSuccess: async (newExpense, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: groupKeys.details(),
+      });
+      await queryClient.invalidateQueries({
         queryKey: groupKeys.detail(variables.groupId),
       });
 
-      // Force immediate refetch with fresh data from server
-      await queryClient.refetchQueries({
-        queryKey: groupKeys.detail(variables.groupId),
-        type: "active", // Only refetch currently active queries
-      });
-
-      // Invalidate and refetch group lists immediately for mobile responsiveness
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: groupKeys.lists(),
-        refetchType: "all", // Force refetch of all matching queries
-      });
-
-      // Remove and invalidate all group detail queries to ensure fresh data everywhere
-      queryClient.removeQueries({
-        queryKey: groupKeys.details(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: groupKeys.details(),
-        refetchType: "all",
       });
     },
   });

@@ -2,9 +2,14 @@ import BalanceCard from "@/src/components/ui/BalanceCard";
 import { ExpenseIcon } from "@/src/components/ui/ExpenseIcon";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useGroupDetails } from "@/src/services/group.service";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
 import { Plus } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -24,7 +29,13 @@ export default function GroupDetails() {
   const { user } = useAuth();
   const [showBalancesModal, setShowBalancesModal] = useState(false);
 
-  const { data, isLoading } = useGroupDetails(id || "");
+  const { data, isLoading, refetch } = useGroupDetails(id || "");
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   if (isLoading || !data) {
     return (

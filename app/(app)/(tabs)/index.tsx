@@ -1,9 +1,9 @@
 import EmptyState from "@/src/components/ui/EmptyState";
 import GroupCard from "@/src/components/ui/GroupCard";
 import { useGroups } from "@/src/services/group.service";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
-import React from "react";
+import React, { useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,12 @@ import {
 const Index = () => {
   const router = useRouter();
   const { data: groups, isLoading, error, refetch } = useGroups();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   if (isLoading) {
     return (
