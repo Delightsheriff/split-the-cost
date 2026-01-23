@@ -18,12 +18,23 @@ export function useCreateSettlement() {
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (_, variables) => {
-      // Invalidate group details to refresh balances
-      queryClient.invalidateQueries({
+    onSuccess: async (_, variables) => {
+      // Remove stale cache data for immediate UI updates in mobile
+      queryClient.removeQueries({
         queryKey: groupKeys.detail(variables.groupId),
       });
-      queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+
+      // Force immediate refetch of group details
+      await queryClient.refetchQueries({
+        queryKey: groupKeys.detail(variables.groupId),
+        type: "active",
+      });
+
+      // Aggressively invalidate group lists for mobile responsiveness
+      queryClient.invalidateQueries({
+        queryKey: groupKeys.lists(),
+        refetchType: "all",
+      });
     },
   });
 }

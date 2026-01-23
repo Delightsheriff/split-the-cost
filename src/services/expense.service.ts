@@ -19,21 +19,31 @@ export function useCreateExpense() {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    onSuccess: (_, variables) => {
-      // Invalidate group details to refresh balances and expenses
-      queryClient.invalidateQueries({
+    onSuccess: async (_, variables) => {
+      // First, remove any stale data from cache to prevent showing old data
+      queryClient.removeQueries({
         queryKey: groupKeys.detail(variables.groupId),
       });
-      queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
 
-      // Also invalidate all group-related queries to ensure fresh data
+      // Force immediate refetch with fresh data from server
+      await queryClient.refetchQueries({
+        queryKey: groupKeys.detail(variables.groupId),
+        type: "active", // Only refetch currently active queries
+      });
+
+      // Invalidate and refetch group lists immediately for mobile responsiveness
       queryClient.invalidateQueries({
+        queryKey: groupKeys.lists(),
+        refetchType: "all", // Force refetch of all matching queries
+      });
+
+      // Remove and invalidate all group detail queries to ensure fresh data everywhere
+      queryClient.removeQueries({
         queryKey: groupKeys.details(),
       });
-
-      // Force refetch the specific group details immediately
-      queryClient.refetchQueries({
-        queryKey: groupKeys.detail(variables.groupId),
+      queryClient.invalidateQueries({
+        queryKey: groupKeys.details(),
+        refetchType: "all",
       });
     },
   });
