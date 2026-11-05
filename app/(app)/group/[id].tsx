@@ -1,6 +1,5 @@
-import BalanceCard from "@/src/components/ui/BalanceCard";
-import { ExpenseIcon } from "@/src/components/ui/ExpenseIcon";
 import { useAuth } from "@/src/contexts/AuthContext";
+import { byDay } from "@/src/domain/dates";
 import { formatMoney, type Cents } from "@/src/domain/money";
 import {
   useDeleteGroup,
@@ -9,34 +8,43 @@ import {
   useUpdateGroup,
 } from "@/src/services/group.service";
 import { useDeleteSettlement } from "@/src/services/settlement.service";
+import { useTheme } from "@/src/theme/theme";
+import type { Expense, GroupMember, Payment, Settlement } from "@/src/types";
+import { Avatar } from "@/src/ui/Avatar";
+import { CategoryBadge } from "@/src/ui/CategoryBadge";
+import { Money } from "@/src/ui/Money";
+import { Moodling, moodFor } from "@/src/ui/Moodling";
+import { PressableScale } from "@/src/ui/PressableScale";
+import { SpendBar } from "@/src/ui/SpendBar";
 import * as Linking from "expo-linking";
-import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
-} from "expo-router";
-import { Ellipsis, Plus } from "lucide-react-native";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowRight, Ellipsis, HandCoins, Plus } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
-  FlatList,
   Modal,
   Pressable,
   ScrollView,
   Share,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type TimelineItem = { kind: "expense"; date: string; expense: Expense } | { kind: "settlement"; date: string; settlement: Settlement };
+
+const HEADLINE = { owed: "You're owed", settled: "All square", owes: "You owe" };
 
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const [showBalancesModal, setShowBalancesModal] = useState(false);
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [showBalances, setShowBalances] = useState(false);
+  const [now] = useState(() => new Date());
 
   const { data, isLoading, refetch } = useGroupDetails(id || "");
   const updateGroup = useUpdateGroup();
@@ -52,25 +60,29 @@ export default function GroupDetails() {
 
   if (isLoading || !data) {
     return (
-      <View className="flex-1 bg-background-dark items-center justify-center">
-        <ActivityIndicator size="large" color="#13ec5b" />
+      <View className="flex-1 bg-bg items-center justify-center">
+        <ActivityIndicator />
       </View>
     );
   }
 
   const { group, expenses, settlements, myBalanceCents, suggestedPayments } = data;
   const money = (cents: Cents) => formatMoney(cents, group.currency);
-  const isCreator = group.createdBy === user?._id;
+  const me = user?._id;
+  const isCreator = group.createdBy === me;
+  const name = (m: GroupMember) => (m._id === me ? "You" : m.name.split(" ")[0]);
 
-  const iPay = suggestedPayments.filter((p) => p.from._id === user?._id);
-  const iGet = suggestedPayments.filter((p) => p.to._id === user?._id);
-  const between = suggestedPayments.filter((p) => p.from._id !== user?._id && p.to._id !== user?._id);
-  const myPayments = settlements.filter(
-    (s) => s.paidBy._id === user?._id || s.paidTo._id === user?._id,
+  const timeline = byDay<TimelineItem>(
+    [
+      ...expenses.map((expense) => ({ kind: "expense" as const, date: expense.date, expense })),
+      ...settlements.map((settlement) => ({ kind: "settlement" as const, date: settlement.date, settlement })),
+    ],
+    (item) => item.date,
+    now,
   );
 
   const settleWith = (paidTo: string, amountCents: Cents) => {
-    setShowBalancesModal(false);
+    setShowBalances(false);
     router.push({
       pathname: "/(app)/expense/SettlementCreate",
       params: { groupId: id, paidTo, amountCents: String(amountCents) },
@@ -100,8 +112,7 @@ export default function GroupDetails() {
       {
         text: "Leave",
         style: "destructive",
-        onPress: () =>
-          leaveGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't leave")),
+        onPress: () => leaveGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't leave")),
       },
     ]);
 
@@ -111,8 +122,7 @@ export default function GroupDetails() {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () =>
-          deleteGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't delete")),
+        onPress: () => deleteGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't delete")),
       },
     ]);
 
@@ -139,231 +149,258 @@ export default function GroupDetails() {
       {
         text: "Undo",
         style: "destructive",
-        onPress: () =>
-          deleteSettlement
-            .mutateAsync({ id: settlementId, groupId: group._id })
-            .catch(fail("Couldn't undo")),
+        onPress: () => deleteSettlement.mutateAsync({ id: settlementId, groupId: group._id }).catch(fail("Couldn't undo")),
       },
     ]);
 
-  const renderExpenseItem = ({ item }: { item: (typeof expenses)[0] }) => {
-    const userPaid = item.paidBy._id === user?._id;
+  /** What this expense did to your balance: lent when you paid, borrowed when someone else did. */
+  const yourPart = (e: Expense) => {
+    const share = e.shares.find((s) => s.user._id === me)?.cents ?? 0;
+    if (e.paidBy._id === me) return { label: "you lent", cents: e.amountCents - share };
+    if (share > 0) return { label: "you borrowed", cents: -share };
+    return null;
+  };
 
+  const renderItem = (item: TimelineItem) => {
+    if (item.kind === "settlement") {
+      const s = item.settlement;
+      const mine = s.paidBy._id === me || s.paidTo._id === me;
+      return (
+        <Pressable
+          key={s._id}
+          disabled={!mine}
+          onLongPress={() => undoPayment(s._id)}
+          accessibilityHint={mine ? "Long press to undo this payment" : undefined}
+          className="flex-row items-center gap-3 py-3"
+        >
+          <View className="w-11 h-11 rounded-full bg-surface-muted items-center justify-center">
+            <HandCoins size={20} color={colors.ink} strokeWidth={2} />
+          </View>
+          <Text className="flex-1 text-ink-muted font-manropeSemi text-[15px]">
+            {name(s.paidBy)} paid {s.paidTo._id === me ? "you" : name(s.paidTo)}
+          </Text>
+          <Money cents={s.amountCents} currency={group.currency} tone="muted" className="text-[15px]" />
+        </Pressable>
+      );
+    }
+    const e = item.expense;
+    const part = yourPart(e);
     return (
-      <TouchableOpacity
-        onPress={() =>
-          router.push({
-            pathname: "/(app)/expense/[id]",
-            params: { id: item._id, groupId: id },
-          })
-        }
-        className="bg-surface-dark rounded-xl p-4 border border-white/5 mx-6 mb-3 active:border-white/20"
+      <PressableScale
+        key={e._id}
+        static
+        onPress={() => router.push({ pathname: "/(app)/expense/[id]", params: { id: e._id, groupId: id } })}
+        className="flex-row items-center gap-3 py-3"
       >
-        <View className="flex-row items-center gap-3">
-          <ExpenseIcon type={item.type} />
-          <View className="flex-1">
-            <Text className="text-white text-base font-semibold font-manrope">
-              {item.description}
-            </Text>
-            <Text className="text-slate-400 text-xs font-manrope">
-              Paid by {userPaid ? "You" : item.paidBy.name}
-            </Text>
-          </View>
-          <View className="items-end">
-            <Text className="text-white text-lg font-bold font-manropeBold">
-              {money(item.amountCents)}
-            </Text>
-            {userPaid ? (
-              <Text className="text-primary text-xs font-bold font-manrope">
-                You paid
-              </Text>
-            ) : (
-              <Text className="text-slate-400 text-xs font-bold font-manrope">
-                {item.split.type === "equal" ? "Split" : `Split by ${item.split.type}`}
-              </Text>
-            )}
-          </View>
+        <CategoryBadge type={e.type} />
+        <View className="flex-1">
+          <Text className="text-ink font-manropeBold text-base" numberOfLines={1}>
+            {e.description}
+          </Text>
+          <Text className="text-ink-muted font-manrope text-[13px]" numberOfLines={1}>
+            {name(e.paidBy)} paid {money(e.amountCents)}
+          </Text>
         </View>
-      </TouchableOpacity>
+        <View className="items-end">
+          {part ? (
+            <>
+              <Text className="text-ink-muted font-manrope text-xs">{part.label}</Text>
+              <Money cents={part.cents} currency={group.currency} tone="signed" className="text-[15px]" />
+            </>
+          ) : (
+            <Text className="text-ink-faint font-manrope text-xs">not involved</Text>
+          )}
+        </View>
+      </PressableScale>
     );
   };
 
   return (
-    <View className="flex-1 bg-background-dark">
+    <View className="flex-1 bg-bg">
       <Stack.Screen
         options={{
           title: group.name,
           headerRight: () => (
             <Pressable onPress={openMenu} hitSlop={12} accessibilityLabel="Group options">
-              <Ellipsis size={22} color="#ffffff" />
+              <Ellipsis size={22} color={colors.ink} />
             </Pressable>
           ),
         }}
       />
-      <FlatList
-        data={expenses}
-        keyExtractor={(item) => item._id}
-        renderItem={renderExpenseItem}
-        ListHeaderComponent={
-          <BalanceCard
-            balanceCents={myBalanceCents}
-            currency={group.currency}
-            onPress={() => setShowBalancesModal(true)}
-          />
-        }
-        contentContainerStyle={{ paddingBottom: 120 }}
-      />
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/(app)/expense/create",
-            params: { groupId: id },
-          })
-        }
-        className="absolute bottom-8 right-6 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-2xl"
-      >
-        <Plus size={28} color="#0d1a0f" strokeWidth={2.5} />
-      </Pressable>
 
-      <Modal
-        visible={showBalancesModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowBalancesModal(false)}
-      >
-        <View className="flex-1 bg-background-dark">
-          <View className="px-6 py-6 border-b border-white/5 flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => setShowBalancesModal(false)}>
-              <Text className="text-primary text-lg font-manropeBold">
-                Close
-              </Text>
-            </TouchableOpacity>
-            <Text className="text-white text-xl font-manropeBold">
-              Balances
-            </Text>
-            <View style={{ width: 60 }} />
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 96 }} showsVerticalScrollIndicator={false}>
+        <View className="mx-5 mt-2 rounded-3xl bg-surface p-5">
+          <View className="flex-row items-center gap-4">
+            <Moodling balanceCents={myBalanceCents} size={76} />
+            <View className="flex-1">
+              <Text className="text-ink-muted font-manropeSemi text-[15px]">{HEADLINE[moodFor(myBalanceCents)]}</Text>
+              {myBalanceCents !== 0 ? (
+                <Money cents={myBalanceCents} currency={group.currency} tone="signed" className="text-3xl font-manropeHeavy" />
+              ) : (
+                <Text className="text-ink font-manropeHeavy text-3xl">{money(0)}</Text>
+              )}
+            </View>
           </View>
-          <ScrollView className="flex-1">
-            <View className="px-6 py-10 items-center border-b border-white/5">
-              <Text className="text-slate-400 text-xs uppercase font-manrope mb-2">
-                Net Balance
+          <PressableScale
+            haptic
+            onPress={() => setShowBalances(true)}
+            className={`mt-4 rounded-2xl py-3.5 items-center ${myBalanceCents < 0 ? "bg-ink" : "bg-surface-muted"}`}
+          >
+            <Text className={`font-manropeBold text-base ${myBalanceCents < 0 ? "text-bg" : "text-ink"}`}>
+              {myBalanceCents < 0 ? "Settle up" : "Balances"}
+            </Text>
+          </PressableScale>
+
+          {expenses.length > 0 && (
+            <View className="mt-5 pt-5 border-t border-line">
+              <Text className="text-ink-muted font-manropeSemi text-[13px] mb-3">
+                Spent together · <Text className="text-ink font-manropeBold">{money(expenses.reduce((s, e) => s + e.amountCents, 0))}</Text>
               </Text>
-              <Text
-                className={`text-5xl font-extrabold font-manropeBold ${
-                  myBalanceCents === 0
-                    ? "text-slate-400"
-                    : myBalanceCents > 0
-                      ? "text-primary"
-                      : "text-red-400"
-                }`}
-              >
-                {money(Math.abs(myBalanceCents))}
-              </Text>
+              <SpendBar expenses={expenses} currency={group.currency} />
             </View>
-            <View className="px-6 py-4">
-              {iPay.length > 0 && (
-                <View className="mb-6">
-                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
-                    You Owe
-                  </Text>
-                  {iPay.map((p) => (
-                    <View
-                      key={p.to._id}
-                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                    >
-                      <Text className="flex-1 text-white text-base font-semibold">{p.to.name}</Text>
-                      <TouchableOpacity
-                        onPress={() => settleWith(p.to._id, p.cents)}
-                        className="bg-primary px-4 py-2 rounded-lg"
-                      >
-                        <Text className="text-background-dark text-xs font-manropeBold">
-                          Pay {money(p.cents)}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {iGet.length > 0 && (
-                <View className="mb-6">
-                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
-                    Owes You
-                  </Text>
-                  {iGet.map((p) => (
-                    <View
-                      key={p.from._id}
-                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                    >
-                      <Text className="flex-1 text-white text-base font-semibold">{p.from.name}</Text>
-                      <Text className="text-primary text-lg font-bold font-manropeBold">
-                        {money(p.cents)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {iPay.length === 0 && iGet.length === 0 && (
-                <View className="items-center py-12">
-                  <Text className="text-slate-500 text-base font-manrope">
-                    All settled up! 🎉
-                  </Text>
-                </View>
-              )}
-
-              {between.length > 0 && (
-                <View className="mb-6">
-                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
-                    Everyone Else
-                  </Text>
-                  {between.map((p) => (
-                    <View
-                      key={`${p.from._id}-${p.to._id}`}
-                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                    >
-                      <Text className="flex-1 text-white text-base font-manrope">
-                        {p.from.name} → {p.to.name}
-                      </Text>
-                      <Text className="text-white text-base font-manropeBold">{money(p.cents)}</Text>
-                    </View>
-                  ))}
-                  <Text className="text-slate-500 text-xs font-manrope">
-                    Debts are simplified, so everyone is even after these payments.
-                  </Text>
-                </View>
-              )}
-
-              {myPayments.length > 0 && (
-                <View className="mb-6">
-                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
-                    Your Payments
-                  </Text>
-                  {myPayments.map((s) => (
-                    <View
-                      key={s._id}
-                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
-                    >
-                      <View className="flex-1">
-                        <Text className="text-white text-base font-semibold">
-                          {s.paidBy._id === user?._id ? `You paid ${s.paidTo.name}` : `${s.paidBy.name} paid you`}
-                        </Text>
-                        <Text className="text-slate-400 text-xs">
-                          {money(s.amountCents)} ·{" "}
-                          {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={() => undoPayment(s._id)} hitSlop={8}>
-                        <Text className="text-red-400 text-xs font-manropeBold">Undo</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
+          )}
         </View>
-      </Modal>
+
+        {timeline.length === 0 ? (
+          <View className="items-center px-10 pt-14">
+            <Text className="text-ink font-manropeBold text-lg">Nothing here yet</Text>
+            <Text className="text-ink-muted font-manrope text-center mt-1">
+              Add the first expense and it&apos;s split between everyone straight away.
+            </Text>
+          </View>
+        ) : (
+          timeline.map((day) => (
+            <View key={day.label} className="px-5 mt-6">
+              <Text className="text-ink-muted font-manropeBold text-[13px] uppercase tracking-wider mb-1">{day.label}</Text>
+              {day.items.map(renderItem)}
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      <View pointerEvents="box-none" className="absolute left-0 right-0 items-center" style={{ bottom: insets.bottom + 12 }}>
+        <PressableScale
+          haptic
+          onPress={() => router.push({ pathname: "/(app)/expense/create", params: { groupId: id } })}
+          className="flex-row items-center gap-2 bg-lime rounded-full pl-5 pr-6 py-4"
+          style={{ boxShadow: "0 8px 24px rgba(19, 236, 91, 0.35)" }}
+        >
+          <Plus size={20} color="#0E0E10" strokeWidth={2.75} />
+          <Text className="text-onfill font-manropeBold text-base">Add expense</Text>
+        </PressableScale>
+      </View>
+
+      <BalancesSheet
+        visible={showBalances}
+        onClose={() => setShowBalances(false)}
+        payments={suggestedPayments}
+        me={me}
+        currency={group.currency}
+        onPay={settleWith}
+        myPayments={settlements.filter((s) => s.paidBy._id === me || s.paidTo._id === me)}
+        onUndo={undoPayment}
+      />
     </View>
+  );
+}
+
+function BalancesSheet({
+  visible,
+  onClose,
+  payments,
+  me,
+  currency,
+  onPay,
+  myPayments,
+  onUndo,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  payments: Payment[];
+  me?: string;
+  currency: string;
+  onPay: (paidTo: string, cents: Cents) => void;
+  myPayments: Settlement[];
+  onUndo: (settlementId: string) => void;
+}) {
+  const { colors } = useTheme();
+  const mine = payments.filter((p) => p.from._id === me || p.to._id === me);
+  const others = payments.filter((p) => p.from._id !== me && p.to._id !== me);
+  const name = (m: GroupMember) => (m._id === me ? "You" : m.name.split(" ")[0]);
+
+  const row = (p: Payment) => (
+    <View key={`${p.from._id}-${p.to._id}`} className="flex-row items-center gap-3 bg-surface rounded-3xl p-4 mb-3">
+      <View className="flex-row items-center gap-1.5">
+        <Avatar user={p.from} size="sm" />
+        <ArrowRight size={16} color={colors.inkFaint} />
+        <Avatar user={p.to} size="sm" />
+      </View>
+      <View className="flex-1">
+        <Text className="text-ink font-manropeSemi text-[15px]" numberOfLines={1}>
+          {name(p.from)} → {name(p.to)}
+        </Text>
+        <Money cents={p.cents} currency={currency} className="text-base" />
+      </View>
+      {p.from._id === me && (
+        <PressableScale haptic onPress={() => onPay(p.to._id, p.cents)} className="bg-ink rounded-full px-4 py-2.5">
+          <Text className="text-bg font-manropeBold">Pay</Text>
+        </PressableScale>
+      )}
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View className="flex-1 bg-bg">
+        <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
+          <Text className="text-ink font-manropeHeavy text-2xl">Who pays who</Text>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Text className="text-ink-muted font-manropeBold text-base">Done</Text>
+          </Pressable>
+        </View>
+        <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 40 }}>
+          {payments.length === 0 ? (
+            <View className="items-center pt-16 gap-4">
+              <Moodling balanceCents={0} size={96} />
+              <Text className="text-ink font-manropeBold text-lg">Everyone&apos;s square</Text>
+            </View>
+          ) : (
+            <>
+              {mine.length > 0 && mine.map(row)}
+              {others.length > 0 && (
+                <>
+                  <Text className="text-ink-muted font-manropeBold text-[13px] uppercase tracking-wider mt-4 mb-3">Between others</Text>
+                  {others.map(row)}
+                </>
+              )}
+              <Text className="text-ink-faint font-manrope text-[13px] mt-2">
+                Debts are simplified across the group, so these payments leave everyone even.
+              </Text>
+            </>
+          )}
+
+          {myPayments.length > 0 && (
+            <>
+              <Text className="text-ink-muted font-manropeBold text-[13px] uppercase tracking-wider mt-8 mb-3">Your payments</Text>
+              {myPayments.map((s) => (
+                <View key={s._id} className="flex-row items-center gap-3 py-2.5">
+                  <View className="flex-1">
+                    <Text className="text-ink font-manropeSemi text-[15px]">
+                      {s.paidBy._id === me ? `You paid ${s.paidTo.name.split(" ")[0]}` : `${s.paidBy.name.split(" ")[0]} paid you`}
+                    </Text>
+                    <Text className="text-ink-muted font-manrope text-[13px]">
+                      {formatMoney(s.amountCents, currency)} · {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => onUndo(s._id)} hitSlop={10}>
+                    <Text className="text-neg font-manropeBold">Undo</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
