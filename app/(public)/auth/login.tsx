@@ -1,5 +1,6 @@
 import InputField from "@/src/components/ui/InputField";
 import { useLogin } from "@/src/services/auth.service";
+import { USE_MOCK_API } from "@/src/services/client";
 import { LoginForm, loginSchema } from "@/src/types/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
@@ -31,6 +32,8 @@ const Login = () => {
     reset,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    // Sign-in is simulated against the mock API, so start with the demo account filled in.
+    defaultValues: USE_MOCK_API ? { email: "you@example.com", password: "password" } : undefined,
   });
 
   const onSubmit = async (data: LoginForm) => {

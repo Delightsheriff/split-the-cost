@@ -1,6 +1,13 @@
 import * as SecureStore from "expo-secure-store";
+import { MockHttpError, mockRequest } from "./mock/server";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+
+/**
+ * Requests go to an in-memory mock of the API (src/services/mock) unless
+ * EXPO_PUBLIC_USE_MOCK_API is "0". Sign-in is simulated there: any password works.
+ */
+export const USE_MOCK_API = process.env.EXPO_PUBLIC_USE_MOCK_API !== "0";
 
 const TOKEN_KEY = "auth_token";
 
@@ -37,6 +44,21 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = await getToken();
+
+  if (USE_MOCK_API) {
+    try {
+      return await mockRequest<T>(endpoint, options, token);
+    } catch (error) {
+      if (error instanceof MockHttpError) {
+        if (error.status === 401) {
+          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          setAuthToken(null);
+        }
+        throw new ApiError(error.message, error.status, { error: error.message });
+      }
+      throw error;
+    }
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
