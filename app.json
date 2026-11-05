@@ -1,21 +1,24 @@
 {
   "expo": {
-    "name": "split-the-cost-app",
+    "name": "Split the Cost",
     "slug": "split-the-cost-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "splitthecostapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.delightsheriff.splitthecost",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.delightsheriff.splitthecost"
     },
     "web": {
       "output": "static",
