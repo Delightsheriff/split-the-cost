@@ -36,10 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasFinishedOnboarding: false,
   });
 
-  useEffect(() => {
-    bootstrapAuth();
-  }, []);
-
   /**
    * App startup:
    * - Load token
@@ -86,6 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }
+
+  useEffect(() => {
+    // Every setState in bootstrapAuth runs after an await, so none of them are synchronous.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    bootstrapAuth();
+  }, []);
 
   /**
    * Accepts a token only.

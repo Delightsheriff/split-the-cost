@@ -142,7 +142,7 @@ const Register = () => {
 
                 <View className="w-full mt-6">
                   <Pressable
-                    onPress={handleSubmit(onSubmit)}
+                    onPress={() => handleSubmit(onSubmit)()}
                     disabled={isSubmitting}
                     className={`py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30 ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
                   >

@@ -132,7 +132,7 @@ const Login = () => {
 
                 <View className="w-full mt-6">
                   <Pressable
-                    onPress={handleSubmit(onSubmit)}
+                    onPress={() => handleSubmit(onSubmit)()}
                     className={`py-5 rounded-2xl items-center flex-row justify-center gap-2 ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
                     disabled={isSubmitting}
                   >

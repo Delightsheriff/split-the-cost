@@ -10,31 +10,31 @@ import {
   Pressable,
   Text,
   View,
-  ViewToken,
+  ListViewToken,
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import onboardingData from "../../../src/services/onboardingData";
+
+const viewConfig = { viewAreaCoveragePercentThreshold: 50 };
 
 const Onboarding = () => {
   const router = useRouter();
   const { completeOnboarding } = useAuth();
 
   const { width: screenWidth } = useWindowDimensions();
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const [scrollX] = useState(() => new Animated.Value(0));
   const [currentIndex, setCurrentIndex] = useState(0);
   const slidesRef = useRef<FlatList>(null);
 
   const viewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+    ({ viewableItems }: { viewableItems: ListViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
         setCurrentIndex(viewableItems[0].index);
       }
     },
     [],
   );
-
-  const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
   const scrollToIndex = useCallback((index: number) => {
     slidesRef.current?.scrollToIndex({ index, animated: true });

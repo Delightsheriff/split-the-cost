@@ -142,7 +142,7 @@ const CreateGroup = () => {
 
       <View className="px-6 pb-8 pt-4 bg-[#0d1a0f]">
         <TouchableOpacity
-          onPress={handleSubmit(onSubmit)}
+          onPress={() => handleSubmit(onSubmit)()}
           disabled={isSubmitting}
           className={`w-full rounded-full py-4 items-center ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
         >

@@ -7,7 +7,7 @@ import { useCreateExpense } from "@/src/services/expense.service";
 import { useGroupDetails } from "@/src/services/group.service";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, User } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,19 +28,18 @@ const CreateExpense = () => {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [expenseType, setExpenseType] = useState<any>("other");
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  // null until the user changes it, which means everyone in the group.
+  const [pickedMembers, setPickedMembers] = useState<string[] | null>(null);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
-  useEffect(() => {
-    if (group && user && selectedMembers.length === 0) {
-      setSelectedMembers(group.group.members.map((m) => m._id));
-    }
-  }, [group, selectedMembers.length, user]);
+  const allMembers = group?.group.members.map((m) => m._id) ?? [];
+  const selectedMembers = pickedMembers ?? allMembers;
 
   const toggleMember = (id: string) => {
-    setSelectedMembers((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id],
-    );
+    setPickedMembers((picked) => {
+      const prev = picked ?? allMembers;
+      return prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id];
+    });
   };
 
   const handleSubmit = async () => {

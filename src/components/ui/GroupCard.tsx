@@ -1,4 +1,4 @@
-import { Group } from "@/src/services/group.service";
+import { Group } from "@/src/types";
 import { ChevronRight } from "lucide-react-native";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
