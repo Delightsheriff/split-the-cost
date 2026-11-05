@@ -32,13 +32,6 @@ module.exports = {
         supplies: "#8B5CF6",
         fuel: "#FFD400",
         other: "#FF6FAE",
-
-        // Old palette, removed once every screen has moved over.
-        primary: "#13ec5b",
-        "background-light": "#f6f8f6",
-        "background-dark": "#102216",
-        "surface-dark": "#1c2e22",
-        "assets-dark": "#9db9a6",
       },
     },
   },
