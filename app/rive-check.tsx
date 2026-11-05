@@ -1,4 +1,4 @@
-import { Fit, RiveView, useRiveFile } from "@rive-app/react-native";
+import { DataBindMode, Fit, RiveView, useRiveFile } from "@rive-app/react-native";
 import { Redirect } from "expo-router";
 import { Text, View } from "react-native";
 
@@ -18,6 +18,8 @@ export default function RiveCheck() {
         <RiveView
           file={riveFile}
           autoPlay
+          // The sample has no view model; Auto would log an error looking for one.
+          dataBind={DataBindMode.None}
           fit={Fit.Contain}
           style={{ width: "100%", height: 360 }}
           onError={(e) => console.error("Rive error:", e.message)}
