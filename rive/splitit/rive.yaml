@@ -1,4 +1,4 @@
-name: onboarding
+name: splitit
 logs:
   file: build/rive.log
   problems: build/problems.log
