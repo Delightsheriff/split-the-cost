@@ -1,13 +1,17 @@
 import { AuthProvider, useAuth } from "@/src/contexts/AuthContext";
+import { ThemeRoot } from "@/src/theme/theme";
 import {
   Manrope_400Regular,
+  Manrope_600SemiBold,
   Manrope_700Bold,
+  Manrope_800ExtraBold,
   useFonts,
 } from "@expo-google-fonts/manrope";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "./global.css";
 
 // Prevent the splash screen from auto-hiding
@@ -24,7 +28,9 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     "Manrope-Regular": Manrope_400Regular,
+    "Manrope-SemiBold": Manrope_600SemiBold,
     "Manrope-Bold": Manrope_700Bold,
+    "Manrope-ExtraBold": Manrope_800ExtraBold,
   });
 
   useEffect(() => {
@@ -37,14 +43,16 @@ export default function RootLayout() {
     return null;
   }
   return (
-    <>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <RootNavigator />
-          <StatusBar barStyle="default" />
-        </AuthProvider>
-      </QueryClientProvider>
-    </>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeRoot>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RootNavigator />
+            <StatusBar barStyle="default" />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeRoot>
+    </GestureHandlerRootView>
   );
 }
 
