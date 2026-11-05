@@ -1,14 +1,17 @@
+import { useTheme } from "@/src/theme/theme";
 import { Stack } from "expo-router";
 
 export default function AppStackLayout() {
+  const { colors } = useTheme();
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: "#0d1a0f" },
-        headerTintColor: "white",
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.ink,
         headerTitleStyle: { fontFamily: "Manrope-Bold" },
-        headerBackVisible: true, // Cleaner iOS look
+        headerBackVisible: true,
         headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
