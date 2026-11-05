@@ -1,5 +1,5 @@
 import { useAuth } from "@/src/contexts/AuthContext";
-import { Moodling } from "@/src/ui/Moodling";
+import { Moodling, useLookAtTouch } from "@/src/ui/Moodling";
 import { PressableScale } from "@/src/ui/PressableScale";
 import { Wordmark } from "@/src/ui/Wordmark";
 import { useRouter } from "expo-router";
@@ -12,6 +12,7 @@ import "../global.css";
 export default function Welcome() {
   const router = useRouter();
   const { completeOnboarding } = useAuth();
+  const { look, handlers } = useLookAtTouch();
 
   const signIn = async () => {
     await completeOnboarding();
@@ -24,17 +25,17 @@ export default function Welcome() {
         <Wordmark />
       </View>
 
-      {/* The three moods, huddled. Each one squishes when poked. */}
-      <View className="flex-1 items-center justify-center">
+      {/* The three moods, huddled. Each one squishes when poked, and they all watch your finger. */}
+      <View className="flex-1 items-center justify-center" {...handlers}>
         <View className="flex-row items-end">
           <Animated.View entering={ZoomIn.springify().damping(12).delay(250)} style={{ marginRight: -18, marginBottom: 8 }}>
-            <Moodling balanceCents={-1} size={110} />
+            <Moodling balanceCents={-1} size={110} look={look} />
           </Animated.View>
           <Animated.View entering={ZoomIn.springify().damping(12).delay(100)} style={{ zIndex: 1 }}>
-            <Moodling balanceCents={1} size={170} />
+            <Moodling balanceCents={1} size={170} look={look} />
           </Animated.View>
           <Animated.View entering={ZoomIn.springify().damping(12).delay(400)} style={{ marginLeft: -18, marginBottom: 8 }}>
-            <Moodling balanceCents={0} size={110} />
+            <Moodling balanceCents={0} size={110} look={look} />
           </Animated.View>
         </View>
       </View>

@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from "@/src/contexts/AuthContext";
 import { ThemeRoot } from "@/src/theme/theme";
+import { RiveScenesProvider } from "@/src/ui/RiveScenes";
 import {
   Manrope_400Regular,
   Manrope_600SemiBold,
@@ -47,7 +48,9 @@ export default function RootLayout() {
       <ThemeRoot>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <RootNavigator />
+            <RiveScenesProvider>
+              <RootNavigator />
+            </RiveScenesProvider>
             <StatusBar barStyle="default" />
           </AuthProvider>
         </QueryClientProvider>

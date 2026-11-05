@@ -1,6 +1,7 @@
+import { Fit, RiveView, useRiveBoolean, useRiveNumber, useRiveTrigger, useViewModelInstance } from "@rive-app/react-native";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -14,6 +15,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle, Path } from "react-native-svg";
+import { useRiveScenes, type ScenesFile } from "./RiveScenes";
 
 export type Mood = "owed" | "settled" | "owes";
 
@@ -46,11 +48,108 @@ function blobPath(size: number, lobes: number, depth: number) {
 
 const TAPS_FOR_SECRET = 7;
 
+type MoodlingProps = {
+  balanceCents: number;
+  size?: number;
+  /** Where the face looks, from -1 (left) to 1 (right). */
+  look?: number;
+};
+
+/** A soft haptic per tap, and `onSecret` after seven quick taps. */
+function useTaps(onSecret: () => void) {
+  const taps = useRef<number[]>([]);
+  return () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+    const now = Date.now();
+    taps.current = [...taps.current.filter((t) => now - t < 2500), now];
+    if (taps.current.length >= TAPS_FOR_SECRET) {
+      taps.current = [];
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSecret();
+    }
+  };
+}
+
 /**
  * The balance as a character. Tapping squishes it; tap it seven times quickly
- * and it gets dollar-sign eyes for a moment.
+ * and it gets dollar-sign eyes for a moment. Drawn by the Rive scene once it
+ * has loaded, and by SVG before then or when motion is reduced.
  */
-export function Moodling({ balanceCents, size = 120 }: { balanceCents: number; size?: number }) {
+export function Moodling(props: MoodlingProps) {
+  const scenes = useRiveScenes();
+  const reduceMotion = useReducedMotion();
+  if (!scenes || reduceMotion) return <SvgMoodling {...props} />;
+  return <RiveMoodling scenes={scenes} {...props} />;
+}
+
+/**
+ * Moodlings look toward a finger held on the screen. Spread the handlers on the
+ * view around them and pass `look` to each.
+ */
+export function useLookAtTouch() {
+  const { width } = useWindowDimensions();
+  const [look, setLook] = useState(0);
+  const follow = (e: GestureResponderEvent) => setLook(Math.max(-1, Math.min(1, (e.nativeEvent.pageX - width / 2) / (width / 2))));
+  const reset = () => setLook(0);
+  return { look, handlers: { onTouchStart: follow, onTouchMove: follow, onTouchEnd: reset, onTouchCancel: reset } };
+}
+
+const START_INSTANCE = { owed: "Owed", settled: "Settled", owes: "Owes" } as const;
+const MOOD_VALUE = { owed: 1, settled: 0, owes: -1 } as const;
+
+function RiveMoodling({ scenes, balanceCents, size = 120, look = 0 }: MoodlingProps & { scenes: ScenesFile }) {
+  const mood = moodFor(balanceCents);
+  // Each Moodling gets its own instance, created in the mood it starts in so it
+  // doesn't cross-fade on mount. Later changes go through `mood`.
+  const [startMood] = useState(mood);
+  const { instance } = useViewModelInstance(scenes, { async: true, instanceName: START_INSTANCE[startMood] });
+  const { setValue: setMood } = useRiveNumber("mood", instance);
+  const { setValue: setLook } = useRiveNumber("look", instance);
+  const { setValue: setRich } = useRiveBoolean("rich", instance);
+  const { trigger: poke } = useRiveTrigger("poke", instance);
+
+  useEffect(() => {
+    if (instance) setMood(MOOD_VALUE[mood]);
+  }, [instance, mood, setMood]);
+  useEffect(() => {
+    if (instance) setLook(look);
+  }, [instance, look, setLook]);
+
+  const onTap = useTaps(() => {
+    setRich(true);
+    setTimeout(() => setRich(false), 2500);
+  });
+
+  if (!instance) return <SvgMoodling balanceCents={balanceCents} size={size} />;
+
+  // The artboard leaves room around the body for the squish, so it draws 20% larger than `size`.
+  const bleed = size * 0.1;
+  return (
+    <Pressable
+      onPress={() => {
+        poke();
+        onTap();
+      }}
+      accessibilityRole="image"
+      accessibilityLabel={LABEL[mood]}
+      hitSlop={8}
+    >
+      <View pointerEvents="none" style={{ width: size, height: size }}>
+        <RiveView
+          file={scenes}
+          artboardName="Moodling"
+          stateMachineName="Main"
+          dataBind={instance}
+          autoPlay
+          fit={Fit.Contain}
+          style={{ position: "absolute", left: -bleed, top: -bleed, width: size + bleed * 2, height: size + bleed * 2 }}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
+function SvgMoodling({ balanceCents, size = 120 }: MoodlingProps) {
   const mood = moodFor(balanceCents);
   const look = LOOK[mood];
   const reduceMotion = useReducedMotion();
@@ -61,7 +160,6 @@ export function Moodling({ balanceCents, size = 120 }: { balanceCents: number; s
   const squish = useSharedValue(1);
 
   const [rich, setRich] = useState(false);
-  const taps = useRef<number[]>([]);
 
   useEffect(() => {
     cancelAnimation(spin);
@@ -103,19 +201,15 @@ export function Moodling({ balanceCents, size = 120 }: { balanceCents: number; s
   }));
   const eyeStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: blink.value }] }));
 
+  const countTap = useTaps(() => {
+    setRich(true);
+    setTimeout(() => setRich(false), 2500);
+  });
   const onTap = () => {
     if (!reduceMotion) {
       squish.set(withSequence(withTiming(0.88, { duration: 90 }), withSpring(1, { damping: 6, stiffness: 300 })));
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-    const now = Date.now();
-    taps.current = [...taps.current.filter((t) => now - t < 2500), now];
-    if (taps.current.length >= TAPS_FOR_SECRET && !rich) {
-      taps.current = [];
-      setRich(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => setRich(false), 2500);
-    }
+    countTap();
   };
 
   const eye = size * 0.1;

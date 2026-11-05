@@ -3,7 +3,7 @@ import { useTheme } from "@/src/theme/theme";
 import { memberColor } from "@/src/theme/tokens";
 import { Avatar } from "@/src/ui/Avatar";
 import { DonutRing } from "@/src/ui/DonutRing";
-import { Moodling } from "@/src/ui/Moodling";
+import { Moodling, useLookAtTouch } from "@/src/ui/Moodling";
 import { PressableScale } from "@/src/ui/PressableScale";
 import { Wordmark } from "@/src/ui/Wordmark";
 import { useRouter } from "expo-router";
@@ -68,11 +68,12 @@ function SettleArt() {
 }
 
 function MoodArt() {
+  const { look, handlers } = useLookAtTouch();
   return (
-    <View className="flex-row items-end gap-3">
-      <Moodling balanceCents={-1} size={84} />
-      <Moodling balanceCents={1} size={130} />
-      <Moodling balanceCents={0} size={84} />
+    <View className="flex-row items-end gap-3" {...handlers}>
+      <Moodling balanceCents={-1} size={84} look={look} />
+      <Moodling balanceCents={1} size={130} look={look} />
+      <Moodling balanceCents={0} size={84} look={look} />
     </View>
   );
 }
