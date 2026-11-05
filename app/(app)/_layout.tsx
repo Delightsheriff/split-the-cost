@@ -18,7 +18,7 @@ export default function AppStackLayout() {
       <Stack.Screen
         name="group/create"
         options={{
-          title: "New Group",
+          title: "New group",
           headerShown: true, // Turn it on for this specific screen
           // presentation: "card",
           headerBackTitle: "Back",
@@ -36,7 +36,7 @@ export default function AppStackLayout() {
       <Stack.Screen
         name="expense/create"
         options={{
-          title: "Add Expense",
+          title: "New expense",
           headerShown: true,
           presentation: "modal", // Modal presentation
           headerBackTitle: "Back",
@@ -45,7 +45,7 @@ export default function AppStackLayout() {
       <Stack.Screen
         name="expense/[id]"
         options={{
-          title: "Expense Details",
+          title: "Expense",
           headerShown: true,
           presentation: "card",
           headerBackTitle: "Back",
@@ -54,7 +54,7 @@ export default function AppStackLayout() {
       <Stack.Screen
         name="expense/SettlementCreate"
         options={{
-          title: "Settle Up",
+          title: "Settle up",
           headerShown: true,
           presentation: "card",
           headerBackTitle: "Back",

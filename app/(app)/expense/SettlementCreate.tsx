@@ -1,182 +1,127 @@
-import UserAvatar from "@/src/components/ui/UserAvatar";
-import { centsToInput, formatMoney, parseCents } from "@/src/domain/money";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { evaluate, hasOperator, press } from "@/src/domain/expression";
+import { centsToInput, formatMoney } from "@/src/domain/money";
 import { useGroupDetails } from "@/src/services/group.service";
 import { useCreateSettlement } from "@/src/services/settlement.service";
+import { useTheme } from "@/src/theme/theme";
+import { Avatar } from "@/src/ui/Avatar";
+import { Keypad } from "@/src/ui/Keypad";
+import { SuccessScreen } from "@/src/ui/SuccessScreen";
+import { SwipeToConfirm } from "@/src/ui/SwipeToConfirm";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Calendar, Check } from "lucide-react-native";
+import { ArrowRight } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Text, View } from "react-native";
+import Animated, { FadeIn, FadeInRight } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SettlementCreate() {
-  const {
-    groupId,
-    paidTo,
-    amountCents: owedCents,
-  } = useLocalSearchParams<{
+  const { groupId, paidTo, amountCents: owedParam } = useLocalSearchParams<{
     groupId: string;
     paidTo: string;
     amountCents: string;
   }>();
 
   const router = useRouter();
-  const { data, isLoading: groupLoading } = useGroupDetails(groupId);
+  const { user } = useAuth();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { data, isLoading } = useGroupDetails(groupId);
   const createSettlement = useCreateSettlement();
 
+  const owedCents = owedParam ? Number(owedParam) : null;
   // Starts at the full amount owed; it can be lowered to record a partial payment.
-  const [amount, setAmount] = useState(owedCents ? centsToInput(Number(owedCents)) : "");
+  const [expression, setExpression] = useState(owedCents ? centsToInput(owedCents) : "");
+  const [paid, setPaid] = useState<number | null>(null);
 
-  const paidToMember = data?.group.members.find((m) => m._id === paidTo);
-  const isSubmitting = createSettlement.isPending;
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-bg items-center justify-center">
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
-  const handleSubmit = async () => {
-    const amountCents = parseCents(amount);
-    if (!amountCents) {
-      Alert.alert("Invalid Amount", "Please enter a valid amount");
-      return;
-    }
+  const recipient = data?.group.members.find((m) => m._id === paidTo);
+  if (!data || !recipient || !user) {
+    return (
+      <View className="flex-1 bg-bg items-center justify-center">
+        <Text className="text-ink font-manrope text-base">That person isn&apos;t in this group any more</Text>
+      </View>
+    );
+  }
 
+  const money = (cents: number) => formatMoney(cents, data.group.currency);
+  const amountCents = evaluate(expression);
+  const valid = amountCents !== null && amountCents > 0;
+  const tooMuch = valid && owedCents !== null && amountCents > owedCents;
+  const firstName = recipient.name.split(" ")[0];
+
+  const pay = async () => {
+    if (!valid) return false;
     try {
-      await createSettlement.mutateAsync(
-        {
-          groupId,
-          paidTo,
-          amountCents,
-        },
-        {
-          onSuccess: () => {
-            router.back();
-          },
-        },
-      );
+      await createSettlement.mutateAsync({ groupId, paidTo, amountCents });
+      setPaid(amountCents);
+      return true;
     } catch (error) {
-      Alert.alert(
-        "Couldn't record payment",
-        error instanceof Error ? error.message : "Failed to record payment",
-      );
+      Alert.alert("Couldn't record payment", error instanceof Error ? error.message : "Failed to record payment");
+      return false;
     }
   };
 
-  if (groupLoading) {
-    return (
-      <View className="flex-1 bg-background-dark items-center justify-center">
-        <ActivityIndicator size="large" color="#13ec5b" />
-      </View>
-    );
-  }
-
-  if (!data || !paidToMember) {
-    return (
-      <View className="flex-1 bg-background-dark items-center justify-center">
-        <Text className="text-white text-base font-manrope">
-          Group or member not found
-        </Text>
-      </View>
-    );
-  }
-
-  const formattedDate = new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
   return (
-    <View className="flex-1 bg-background-dark">
-      <ScrollView
-        className="flex-1"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="px-6 py-8">
-          <View className="items-center mb-10">
-            <View className="relative mb-4">
-              <UserAvatar
-                name={paidToMember.name}
-                avatar={paidToMember.avatar}
-                size="lg"
-              />
-              <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary items-center justify-center border-2 border-background-dark">
-                <Check size={14} color="#0d1a0f" strokeWidth={3} />
-              </View>
-            </View>
-            <Text className="text-slate-400 text-sm font-manrope mb-1">
-              You&apos;re settling with{" "}
-              <Text className="text-white font-manropeBold">
-                {paidToMember.name}
-              </Text>
-            </Text>
-          </View>
-
-          <View className="items-center mb-10">
-            <View className="flex-row items-center">
-              <TextInput
-                className="text-white text-6xl font-manropeBold min-w-[150px] text-center"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                editable={!isSubmitting}
-              />
-            </View>
-            <Text className="text-slate-500 text-xs font-manrope mt-2">
-              {owedCents
-                ? `You owe ${formatMoney(Number(owedCents), data.group.currency)}`
-                : data.group.currency}
-            </Text>
-          </View>
-
-          <View className="mb-6">
-            <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-2">
-              Date
-            </Text>
-            <View className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5">
-              <Text className="flex-1 text-white text-base font-manrope">
-                Today, {formattedDate}
-              </Text>
-              <Calendar size={20} color="#64748b" />
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View className="px-6 pb-8 pt-4 border-t border-white/5 bg-background-dark">
-        <View className="flex-row gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            disabled={isSubmitting}
-            className="flex-1 rounded-xl py-4 items-center bg-surface-dark border border-white/5"
-          >
-            <Text className="text-white text-base font-manropeBold">
-              Cancel
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            className={`flex-1 rounded-xl py-4 items-center flex-row justify-center ${
-              isSubmitting ? "bg-slate-700" : "bg-primary"
-            }`}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#0d1a0f" />
-            ) : (
-              <>
-                <Check size={20} color="#0d1a0f" strokeWidth={3} />
-                <Text className="text-[#0d1a0f] text-base font-manropeBold ml-2">
-                  Confirm Payment
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+    <View className="flex-1 bg-bg" style={{ paddingBottom: insets.bottom + 8 }}>
+      <View className="flex-row items-center justify-center gap-3 pt-4">
+        <Avatar user={user} size="lg" />
+        <ArrowRight size={22} color={colors.inkFaint} />
+        <Animated.View entering={FadeInRight.duration(300).delay(150)}>
+          <Avatar user={recipient} size="lg" />
+        </Animated.View>
       </View>
+      <Text className="text-ink-muted font-manropeSemi text-base text-center mt-3">
+        Paying <Text className="text-ink font-manropeBold">{firstName}</Text>
+      </Text>
+
+      <View className="flex-1 items-center justify-center px-6">
+        <Text
+          className={`font-manropeHeavy text-6xl ${expression === "" ? "text-ink-faint" : "text-ink"}`}
+          style={{ fontVariant: ["tabular-nums"], lineHeight: 76, paddingTop: 6 }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {formatMoney(0, data.group.currency).replace(/[\d.,\s]/g, "")}
+          {expression === "" ? "0" : expression.replace(/([+−×÷])/g, " $1 ")}
+        </Text>
+        {hasOperator(expression) && amountCents !== null && (
+          <Animated.Text entering={FadeIn.duration(150)} className="text-ink-muted font-manropeBold text-2xl" style={{ fontVariant: ["tabular-nums"] }}>
+            = {money(amountCents)}
+          </Animated.Text>
+        )}
+        {owedCents !== null && (
+          <Text className={`font-manropeSemi text-[15px] mt-2 ${tooMuch ? "text-neg" : "text-ink-muted"}`}>
+            {tooMuch ? `That's more than the ${money(owedCents)} you owe` : `You owe ${firstName} ${money(owedCents)}`}
+          </Text>
+        )}
+      </View>
+
+      <View className="px-4 gap-3">
+        <Keypad onKey={(k) => setExpression((e) => press(e, k))} onClear={() => setExpression("")} />
+        <SwipeToConfirm
+          label={valid ? `Swipe to pay ${money(amountCents)}` : "Type an amount"}
+          disabled={!valid || tooMuch}
+          onConfirm={pay}
+        />
+      </View>
+
+      <SuccessScreen
+        visible={paid !== null}
+        title="Paid!"
+        line={paid !== null ? `You paid ${firstName} ${money(paid)}` : ""}
+        onDone={() => {
+          setPaid(null);
+          router.back();
+        }}
+      />
     </View>
   );
 }
