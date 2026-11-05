@@ -1,153 +1,66 @@
 import { useAuth } from "@/src/contexts/AuthContext";
-import { LinearGradient } from "expo-linear-gradient";
+import { Moodling } from "@/src/ui/Moodling";
+import { PressableScale } from "@/src/ui/PressableScale";
+import { Wordmark } from "@/src/ui/Wordmark";
 import { useRouter } from "expo-router";
-import { ArrowRight, Wallet } from "lucide-react-native";
 import React from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import "../global.css";
 
-const Welcome = () => {
+export default function Welcome() {
   const router = useRouter();
   const { completeOnboarding } = useAuth();
 
-  async function handleSkip() {
+  const signIn = async () => {
     await completeOnboarding();
     router.push("/(public)/auth/login");
-  }
-
-  function handleGetStarted() {
-    router.push("/(public)/onboarding");
-  }
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View className="flex-1 bg-background-dark p-6">
-        {/* Top bar */}
-        <View className="flex-row items-center justify-between mt-4">
-          <View className="flex-row items-center gap-2">
-            <View className="w-10 h-10 rounded-xl bg-primary items-center justify-center shadow-lg shadow-primary/20">
-              <Wallet size={24} color="#102216" />
-            </View>
+    <SafeAreaView className="flex-1 bg-bg">
+      <View className="px-5 pt-2">
+        <Wordmark />
+      </View>
 
-            <View className="flex-row items-center">
-              <Text className="text-xl font-extrabold tracking-tight text-white font-manropeBold">
-                Split
-              </Text>
-              <Text className="text-xl font-extrabold tracking-tight text-primary font-manropeBold">
-                It
-              </Text>
-            </View>
-          </View>
-
-          <Pressable onPress={handleSkip} className="px-2 py-1">
-            <Text className="text-sm text-slate-500 font-manropeBold">
-              Skip
-            </Text>
-          </Pressable>
+      {/* The three moods, huddled. Each one squishes when poked. */}
+      <View className="flex-1 items-center justify-center">
+        <View className="flex-row items-end">
+          <Animated.View entering={ZoomIn.springify().damping(12).delay(250)} style={{ marginRight: -18, marginBottom: 8 }}>
+            <Moodling balanceCents={-1} size={110} />
+          </Animated.View>
+          <Animated.View entering={ZoomIn.springify().damping(12).delay(100)} style={{ zIndex: 1 }}>
+            <Moodling balanceCents={1} size={170} />
+          </Animated.View>
+          <Animated.View entering={ZoomIn.springify().damping(12).delay(400)} style={{ marginLeft: -18, marginBottom: 8 }}>
+            <Moodling balanceCents={0} size={110} />
+          </Animated.View>
         </View>
+      </View>
 
-        {/* Content */}
-        <View className="flex-1 items-center justify-between px-5 mt-10">
-          {/* Image with gradient overlays */}
-          <View style={{ width: "100%", height: "50%", position: "relative" }}>
-            <Image
-              source={require("../../assets/bg1.png")}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
+      <View className="px-5 pb-4">
+        <Animated.Text entering={FadeInDown.duration(300).delay(300)} className="text-ink font-manropeHeavy text-[44px] leading-[48px] tracking-tight">
+          Split bills,{"\n"}
+          <Text className="text-pos">not friendships.</Text>
+        </Animated.Text>
+        <Animated.Text entering={FadeInDown.duration(300).delay(400)} className="text-ink-muted font-manrope text-base mt-3 leading-6">
+          Track what you share with flatmates, trips and friends, and settle up in a swipe.
+        </Animated.Text>
 
-            {/* Top fade */}
-            <LinearGradient
-              colors={["rgba(16,34,22,0.95)", "transparent"]}
-              locations={[0, 0.5]}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 120,
-              }}
-            />
+        <Animated.View entering={FadeInDown.duration(300).delay(500)} className="mt-8 gap-3">
+          <PressableScale haptic onPress={() => router.push("/(public)/onboarding")} className="bg-lime rounded-full h-14 items-center justify-center">
+            <Text className="text-onfill font-manropeBold text-base">Get started</Text>
+          </PressableScale>
+          <PressableScale onPress={signIn} className="bg-surface rounded-full h-14 items-center justify-center">
+            <Text className="text-ink font-manropeBold text-base">I have an account</Text>
+          </PressableScale>
+        </Animated.View>
 
-            {/* Bottom fade */}
-            <LinearGradient
-              colors={["transparent", "rgba(16,34,22,1)"]}
-              locations={[0.4, 1]}
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: 160,
-              }}
-            />
-
-            {/* Side edge blend */}
-            <LinearGradient
-              colors={[
-                "rgba(16,34,22,0.8)",
-                "transparent",
-                "rgba(16,34,22,0.8)",
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              locations={[0, 0.25, 1]}
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0,
-              }}
-              pointerEvents="none"
-            />
-          </View>
-
-          {/* Text */}
-          <View className="items-center mt-6">
-            <Text className="text-4xl font-extrabold font-manropeBold text-center">
-              <Text className="text-white">Split bills,{"\n"}</Text>
-              <Text className="text-primary">not friendships</Text>
-            </Text>
-
-            <Text className="text-base font-medium text-slate-600 max-w-[280px] leading-relaxed text-center font-manrope mt-3">
-              Track shared expenses and settle up instantly with roommates,
-              trips, and friends.
-            </Text>
-          </View>
-
-          {/* Actions */}
-          <View className="w-full">
-            <Pressable
-              className="bg-primary py-5 rounded-2xl items-center flex-row justify-center gap-2 shadow-lg shadow-primary/30 my-6"
-              onPress={handleGetStarted}
-            >
-              <Text className="text-background-dark font-manropeBold text-lg font-bold">
-                Get Started
-              </Text>
-              <ArrowRight />
-            </Pressable>
-
-            <Pressable className="items-center" onPress={handleSkip}>
-              <Text className="text-background-light font-manropeBold font-bold text-lg">
-                I have an account
-              </Text>
-            </Pressable>
-
-            <View className="mt-8">
-              <Text className="text-xs text-slate-400 font-medium text-center font-manrope">
-                By continuing, you agree to our{" "}
-                <Text className="underline">Terms</Text>
-                {" & "}
-                <Text className="underline">Privacy</Text>
-              </Text>
-            </View>
-          </View>
-        </View>
+        <Text className="text-ink-faint font-manrope text-xs text-center mt-5">
+          By continuing you agree to the Terms and Privacy Policy.
+        </Text>
       </View>
     </SafeAreaView>
   );
-};
-
-export default Welcome;
+}

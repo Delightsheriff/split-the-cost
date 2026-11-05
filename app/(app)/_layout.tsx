@@ -1,6 +1,9 @@
 import { useTheme } from "@/src/theme/theme";
 import { Stack } from "expo-router";
 
+// A deep link straight to an invite still gets the tabs underneath it.
+export const unstable_settings = { anchor: "(tabs)" };
+
 export default function AppStackLayout() {
   const { colors } = useTheme();
   return (
