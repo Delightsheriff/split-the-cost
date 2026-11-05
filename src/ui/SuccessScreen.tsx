@@ -1,4 +1,5 @@
 import { memberColors } from "@/src/theme/tokens";
+import { DataBindMode, Fit, RiveView } from "@rive-app/react-native";
 import * as Haptics from "expo-haptics";
 import { Check } from "lucide-react-native";
 import React, { useEffect } from "react";
@@ -16,6 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressableScale } from "./PressableScale";
+import { useRiveScenes } from "./RiveScenes";
 
 const PIECES = 28;
 
@@ -78,6 +80,7 @@ export function SuccessScreen({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const scenes = useRiveScenes();
   useEffect(() => {
     if (!visible) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -86,12 +89,26 @@ export function SuccessScreen({
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onDone}>
       <View className="flex-1 bg-lime items-center justify-center px-8" style={{ paddingBottom: insets.bottom }}>
-        {!reduceMotion &&
-          Array.from({ length: PIECES }, (_, i) => <Confetti key={i} seed={i + 1} width={width} height={height} />)}
-
-        <Animated.View entering={ZoomIn.springify().damping(12).delay(100)} className="w-28 h-28 rounded-full bg-onfill items-center justify-center">
-          <Check size={56} color="#13EC5B" strokeWidth={3.5} />
-        </Animated.View>
+        {scenes && !reduceMotion ? (
+          // The Rive burst draws the same 112pt badge at its centre, with the confetti around it.
+          <RiveView
+            file={scenes}
+            artboardName="Success"
+            stateMachineName="Main"
+            dataBind={DataBindMode.None}
+            autoPlay
+            fit={Fit.Contain}
+            style={{ width: 320, height: 320, marginVertical: -104 }}
+          />
+        ) : (
+          <>
+            {!reduceMotion &&
+              Array.from({ length: PIECES }, (_, i) => <Confetti key={i} seed={i + 1} width={width} height={height} />)}
+            <Animated.View entering={ZoomIn.springify().damping(12).delay(100)} className="w-28 h-28 rounded-full bg-onfill items-center justify-center">
+              <Check size={56} color="#13EC5B" strokeWidth={3.5} />
+            </Animated.View>
+          </>
+        )}
         <Animated.Text entering={FadeInDown.duration(300).delay(250)} className="text-onfill font-manropeHeavy text-4xl mt-8 text-center">
           {title}
         </Animated.Text>
