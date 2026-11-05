@@ -1,162 +1,151 @@
-import InputField from "@/src/components/ui/InputField";
-import MemberItem from "@/src/components/ui/MemberItem";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useCreateGroup } from "@/src/services/group.service";
+import { useTheme } from "@/src/theme/theme";
 import { GroupForm, groupSchema } from "@/src/types/schema";
+import { Avatar } from "@/src/ui/Avatar";
+import { PressableScale } from "@/src/ui/PressableScale";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
+import { Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, Text, TextInput, View } from "react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const CreateGroup = () => {
+export default function CreateGroup() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const createGroup = useCreateGroup();
-  const [emailInput, setEmailInput] = useState("");
-  const authenticatedUserEmail = user?.email ?? "";
+  const [email, setEmail] = useState("");
+  const me = user?.email ?? "";
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitted },
     setValue,
-    watch,
   } = useForm<GroupForm>({
     resolver: zodResolver(groupSchema),
-    defaultValues: { name: "", members: [authenticatedUserEmail] },
+    defaultValues: { name: "", members: [me] },
   });
 
-  const members = watch("members");
-  const additionalMembers = members.slice(1);
-  const isSubmitting = createGroup.isPending;
+  const name = useWatch({ control, name: "name" });
+  const members = useWatch({ control, name: "members" });
+  const busy = createGroup.isPending;
+  const normalized = email.toLowerCase().trim();
+  const canAdd = groupSchema.shape.members.element.safeParse(normalized).success && !members.includes(normalized);
+  // Array.from keeps an emoji whole, so "🏖️ Beach" gets the emoji as its tile.
+  const initial = Array.from(name.trim())[0]?.toUpperCase();
 
-  const handleAddEmail = () => {
-    const normalized = emailInput.toLowerCase().trim();
-    const emailSchema = groupSchema.shape.members.element;
-    const result = emailSchema.safeParse(normalized);
-
-    if (!result.success || !normalized || members.includes(normalized)) {
-      setEmailInput("");
-      return;
-    }
-
+  const add = () => {
+    if (!canAdd) return;
     setValue("members", [...members, normalized], { shouldValidate: true });
-    setEmailInput("");
+    setEmail("");
   };
 
   const onSubmit = async (data: GroupForm) => {
     try {
-      await createGroup.mutateAsync({
-        name: data.name,
-        members: Array.from(
-          new Set(data.members.map((e) => e.toLowerCase().trim())),
-        ),
-      });
+      await createGroup.mutateAsync({ name: data.name.trim(), members: [...new Set(data.members.map((e) => e.toLowerCase().trim()))] });
       router.back();
     } catch (error) {
-      console.error("Failed to create group:", error);
+      Alert.alert("Couldn't create group", error instanceof Error ? error.message : "");
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        className="flex-1 bg-background-dark"
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="flex-1 px-6 pt-10">
+    <KeyboardAvoidingView behavior="padding" className="flex-1 bg-bg">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+        <View className="flex-row items-center gap-4">
+          <View className="w-16 h-16 rounded-[20px] bg-surface-muted items-center justify-center">
+            <Text className="text-ink font-manropeHeavy text-2xl">{initial || "?"}</Text>
+          </View>
           <Controller
             control={control}
             name="name"
             render={({ field: { onChange, onBlur, value } }) => (
-              <InputField
-                label="Group Name"
-                placeholder="E.g., Weekend Trip"
+              <TextInput
                 value={value}
-                onBlur={onBlur}
                 onChangeText={onChange}
-                error={errors.name?.message}
-                editable={!isSubmitting}
+                onBlur={onBlur}
+                editable={!busy}
+                autoFocus
+                placeholder="Group name"
+                placeholderTextColor={colors.inkFaint}
+                returnKeyType="next"
+                accessibilityLabel="Group name"
+                className="flex-1 text-ink font-manropeHeavy text-3xl"
               />
             )}
           />
+        </View>
+        {errors.name && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.name.message}</Text>}
 
-          <View className="mb-4">
-            <Text className="text-white text-xl font-bold font-manropeBold mb-4">
-              Members
-            </Text>
+        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-10 mb-2">Who&apos;s in</Text>
+        <View className="bg-surface rounded-3xl px-4">
+          {members.map((m, i) => (
+            <Animated.View
+              key={m}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+              layout={LinearTransition.duration(200)}
+              className={`flex-row items-center gap-3 py-3 ${i > 0 ? "border-t border-line" : ""}`}
+            >
+              <Avatar user={i === 0 && user ? user : { _id: m, name: m }} size="sm" />
+              <Text className="flex-1 text-ink font-manropeSemi text-[15px]" numberOfLines={1}>
+                {i === 0 ? "You" : m}
+              </Text>
+              {i > 0 && (
+                <PressableScale
+                  onPress={() => setValue("members", members.filter((x) => x !== m), { shouldValidate: isSubmitted })}
+                  disabled={busy}
+                  hitSlop={10}
+                  accessibilityLabel={`Remove ${m}`}
+                  className="w-7 h-7 rounded-full bg-surface-muted items-center justify-center"
+                >
+                  <X size={14} color={colors.inkMuted} strokeWidth={2.5} />
+                </PressableScale>
+              )}
+            </Animated.View>
+          ))}
 
-            <MemberItem email={authenticatedUserEmail} isUser />
-
-            {additionalMembers.map((email) => (
-              <MemberItem
-                key={email}
-                email={email}
-                onRemove={() =>
-                  setValue(
-                    "members",
-                    members.filter((m) => m !== email),
-                    { shouldValidate: true },
-                  )
-                }
-                disabled={isSubmitting}
-              />
-            ))}
-
-            <InputField
-              placeholder="Enter email address"
-              value={emailInput}
-              onChangeText={setEmailInput}
-              onSubmitEditing={handleAddEmail}
-              editable={!isSubmitting}
+          <View className="flex-row items-center gap-3 py-2 border-t border-line">
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              onSubmitEditing={add}
+              editable={!busy}
+              placeholder="Add by email"
+              placeholderTextColor={colors.inkFaint}
               keyboardType="email-address"
               autoCapitalize="none"
-              error={errors.members?.message}
+              autoCorrect={false}
+              returnKeyType="done"
+              submitBehavior="submit"
+              accessibilityLabel="Member email"
+              className="flex-1 text-ink font-manropeSemi text-[15px] py-2"
             />
-
-            <TouchableOpacity
-              onPress={handleAddEmail}
-              disabled={isSubmitting}
-              className="w-full rounded-xl bg-surface-dark border-[2px] border-dashed border-white/10 py-4 items-center"
+            <PressableScale
+              onPress={add}
+              disabled={!canAdd || busy}
+              accessibilityLabel="Add member"
+              className="w-9 h-9 rounded-full bg-ink items-center justify-center"
             >
-              <Text className="text-primary text-lg font-semibold font-manrope">
-                + Add Member
-              </Text>
-            </TouchableOpacity>
+              <Plus size={18} color={colors.background} strokeWidth={2.75} />
+            </PressableScale>
           </View>
         </View>
+        {errors.members && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.members.message}</Text>}
+        <Text className="text-ink-muted font-manrope text-[13px] mt-3">You can also share an invite link once the group exists.</Text>
       </ScrollView>
 
-      <View className="px-6 pb-8 pt-4 bg-[#0d1a0f]">
-        <TouchableOpacity
-          onPress={() => handleSubmit(onSubmit)()}
-          disabled={isSubmitting}
-          className={`w-full rounded-full py-4 items-center ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-white text-lg font-bold font-manropeBold">
-              Create Group
-            </Text>
-          )}
-        </TouchableOpacity>
+      <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 8 }}>
+        <PressableScale haptic onPress={() => handleSubmit(onSubmit)()} disabled={busy} className="bg-lime rounded-full h-14 items-center justify-center">
+          {busy ? <ActivityIndicator color="#0E0E10" /> : <Text className="text-onfill font-manropeBold text-base">Create group</Text>}
+        </PressableScale>
       </View>
     </KeyboardAvoidingView>
   );
-};
-
-export default CreateGroup;
+}

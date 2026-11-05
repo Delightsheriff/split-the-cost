@@ -60,6 +60,7 @@ export default function AppStackLayout() {
           headerBackTitle: "Back",
         }}
       />
+      <Stack.Screen name="join/[code]" options={{ title: "Invite", headerShown: true, presentation: "modal" }} />
     </Stack>
   );
 }
