@@ -1,91 +1,68 @@
-import { formatMoney } from "@/src/domain/money";
+import { byDay } from "@/src/domain/dates";
 import { Activity, useActivities } from "@/src/services/activity.service";
+import { useTheme } from "@/src/theme/theme";
+import { Avatar } from "@/src/ui/Avatar";
+import { CategoryBadge } from "@/src/ui/CategoryBadge";
+import { Money } from "@/src/ui/Money";
+import { Moodling } from "@/src/ui/Moodling";
+import { PressableScale } from "@/src/ui/PressableScale";
 import { useFocusEffect, useRouter } from "expo-router";
+import { ArrowRight } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
-const FILTER_OPTIONS = ["All", "This Week", "This Month"];
+const FILTERS = ["All", "This Week", "This Month"];
 
-const EXPENSE_ICONS: Record<string, string> = {
-  food: "🍕",
-  transport: "✈️",
-  supplies: "🛒",
-  fuel: "⛽",
-  other: "💰",
-};
+const first = (name: string) => name.split(" ")[0];
 
-function getExpenseIcon(type: string): string {
-  return EXPENSE_ICONS[type] || "💰";
-}
-
-function formatDateLabel(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "TODAY";
-  if (diffDays === 1) return "YESTERDAY";
-  if (diffDays <= 7) return "THIS WEEK";
-  if (diffDays <= 30) return "THIS MONTH";
-  return "OLDER";
-}
-
-function formatActivityTitle(activity: Activity): string {
+function subtitle(activity: Activity) {
   if (activity.type === "expense") {
-    return activity.description;
+    return `${activity.paidByCurrentUser ? "You" : first(activity.paidBy.name)} paid · ${activity.groupName}`;
   }
-  return activity.note || "Settlement";
+  const from = activity.paidByCurrentUser ? "You" : first(activity.paidBy.name);
+  const to = activity.paidToCurrentUser ? "you" : first(activity.paidTo.name);
+  return `${from} paid ${to} · ${activity.groupName}`;
 }
 
-function formatActivitySubtitle(activity: Activity): string {
-  if (activity.type === "expense") {
-    const { paidBy, paidByCurrentUser, groupName } = activity;
-    return paidByCurrentUser
-      ? `You paid in ${groupName}`
-      : `${paidBy.name} paid in ${groupName}`;
-  }
-
-  const { paidBy, paidTo, paidByCurrentUser, paidToCurrentUser, groupName } =
-    activity;
-
-  if (paidByCurrentUser) {
-    return `You settled with ${paidTo.name} in ${groupName}`;
-  }
-
-  if (paidToCurrentUser) {
-    return `${paidBy.name} settled with you in ${groupName}`;
-  }
-
-  return `${paidBy.name} settled with ${paidTo.name} in ${groupName}`;
+function Row({ activity, onPress }: { activity: Activity; onPress?: () => void }) {
+  const { colors } = useTheme();
+  const settlement = activity.type === "settlement";
+  return (
+    <PressableScale static onPress={onPress} accessibilityRole={onPress ? "button" : undefined} className="flex-row items-center gap-3 py-3">
+      {settlement ? (
+        <View className="flex-row items-center" style={{ width: 44 }}>
+          <Avatar user={{ _id: activity.paidBy.id, name: activity.paidBy.name }} size="xs" />
+          <View style={{ marginLeft: -6, marginTop: 14 }}>
+            <Avatar user={{ _id: activity.paidTo.id, name: activity.paidTo.name }} size="xs" ring />
+          </View>
+        </View>
+      ) : (
+        <CategoryBadge type={activity.expenseType} />
+      )}
+      <View className="flex-1">
+        <Text className="text-ink font-manropeBold text-base" numberOfLines={1}>
+          {settlement ? activity.note || "Payment" : activity.description}
+        </Text>
+        <Text className="text-ink-muted font-manrope text-[13px] mt-0.5" numberOfLines={1}>
+          {subtitle(activity)}
+        </Text>
+      </View>
+      {settlement ? (
+        <View className="flex-row items-center gap-1">
+          <ArrowRight size={14} color={colors.inkFaint} />
+          <Money cents={activity.amountCents} currency={activity.currency} tone="muted" className="text-base" />
+        </View>
+      ) : (
+        <Money cents={activity.amountCents} currency={activity.currency} className="text-base" />
+      )}
+    </PressableScale>
+  );
 }
-
-function getActivityIcon(activity: Activity): string {
-  if (activity.type === "expense") {
-    return getExpenseIcon(activity.expenseType);
-  }
-  return "✅";
-}
-
-type FlatListItem =
-  | { id: string; type: "header"; dateLabel: string }
-  | (Activity & { type: "expense" | "settlement" });
 
 export default function ActivityScreen() {
   const router = useRouter();
-  const [selectedFilter, setSelectedFilter] = useState("All");
-
-  const {
-    data: activities = [],
-    isLoading,
-    refetch,
-  } = useActivities(selectedFilter);
+  const [filter, setFilter] = useState("All");
+  const { data: activities = [], isLoading, refetch } = useActivities(filter);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,140 +70,58 @@ export default function ActivityScreen() {
     }, [refetch]),
   );
 
-  const flattenedData = useMemo(() => {
-    const grouped = activities.reduce(
-      (acc, activity) => {
-        const dateLabel = formatDateLabel(activity.date);
-        if (!acc[dateLabel]) {
-          acc[dateLabel] = [];
-        }
-        acc[dateLabel].push(activity);
-        return acc;
-      },
-      {} as Record<string, Activity[]>,
-    );
-
-    const items: FlatListItem[] = [];
-
-    Object.entries(grouped).forEach(([dateLabel, groupActivities]) => {
-      items.push({ id: `header-${dateLabel}`, type: "header", dateLabel });
-      items.push(...groupActivities);
-    });
-
-    return items;
-  }, [activities]);
-
-  const handleActivityPress = (activity: Activity) => {
-    if (activity.type === "expense") {
-      router.push({
-        pathname: "/(app)/expense/[id]",
-        params: { id: activity.id, groupId: activity.groupId },
-      });
-    }
-  };
-
-  const renderActivityItem = (activity: Activity) => {
-    return (
-      <TouchableOpacity
-        onPress={() => handleActivityPress(activity)}
-        className="bg-surface-dark rounded-xl p-4 mb-3 mx-6 border border-white/5 active:border-white/20"
-      >
-        <View className="flex-row items-center gap-3">
-          <View className="w-12 h-12 rounded-full items-center justify-center bg-white/10">
-            <Text className="text-2xl">{getActivityIcon(activity)}</Text>
-          </View>
-
-          <View className="flex-1">
-            <Text className="text-white text-base font-semibold font-manrope mb-1">
-              {formatActivityTitle(activity)}
-            </Text>
-            <Text className="text-slate-400 text-sm font-medium font-manrope">
-              {formatActivitySubtitle(activity)}
-            </Text>
-          </View>
-
-          <View className="items-end">
-            <Text className="text-primary text-lg font-bold font-manropeBold mb-1">
-              {formatMoney(activity.amountCents, activity.currency)}
-            </Text>
-            <Text className="text-slate-500 text-xs font-medium font-manrope">
-              {activity.groupName}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderSectionHeader = (dateLabel: string) => (
-    <View className="px-6 py-3">
-      <Text className="text-slate-400 text-xs font-bold uppercase tracking-wider font-manrope">
-        {dateLabel}
-      </Text>
-    </View>
-  );
-
-  const renderItem = ({ item }: { item: FlatListItem }) => {
-    if (item.type === "header") {
-      return renderSectionHeader(item.dateLabel);
-    }
-    return renderActivityItem(item);
-  };
-
-  if (isLoading) {
-    return (
-      <View className="flex-1 bg-background-dark items-center justify-center">
-        <ActivityIndicator size="large" color="#13ec5b" />
-      </View>
-    );
-  }
+  const days = useMemo(() => byDay(activities, (a) => a.date, new Date()), [activities]);
 
   return (
-    <View className="flex-1 bg-background-dark">
-      <View className="px-6 py-6 border-b border-white/5">
-        <Text className="text-4xl font-extrabold tracking-tight text-white font-manropeBold">
-          Activity
-        </Text>
-      </View>
-
-      <View className="px-6 py-4">
-        <View className="flex-row gap-2">
-          {FILTER_OPTIONS.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              onPress={() => setSelectedFilter(filter)}
-              className={`px-4 py-2 rounded-full ${
-                selectedFilter === filter
-                  ? "bg-primary"
-                  : "bg-surface-dark border border-white/10"
-              }`}
+    <View className="flex-1 bg-bg">
+      <View className="px-5 pt-4 pb-2">
+        <Text className="text-ink font-manropeHeavy text-4xl tracking-tight">Activity</Text>
+        <View className="flex-row gap-2 mt-4">
+          {FILTERS.map((f) => (
+            <PressableScale
+              key={f}
+              onPress={() => setFilter(f)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === f }}
+              className={`px-4 py-2 rounded-full ${filter === f ? "bg-ink" : "bg-surface"}`}
             >
-              <Text
-                className={`text-sm font-semibold font-manrope ${
-                  selectedFilter === filter ? "text-[#0d1a0f]" : "text-white"
-                }`}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
+              <Text className={`font-manropeBold text-sm ${filter === f ? "text-bg" : "text-ink"}`}>{f}</Text>
+            </PressableScale>
           ))}
         </View>
       </View>
 
-      {activities.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-slate-500 text-base font-manrope text-center">
-            No activities yet
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator />
+        </View>
+      ) : activities.length === 0 ? (
+        <View className="flex-1 items-center justify-center px-10">
+          <Moodling balanceCents={0} size={96} />
+          <Text className="text-ink font-manropeBold text-lg mt-5">Quiet in here</Text>
+          <Text className="text-ink-muted font-manrope text-[15px] text-center mt-1">
+            {filter === "All" ? "Expenses and payments from all your groups land here." : "Nothing in this stretch. Try a wider filter."}
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={flattenedData}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+          {days.map((day) => (
+            <View key={day.label} className="mt-4">
+              <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest">{day.label}</Text>
+              {day.items.map((a) => (
+                <Row
+                  key={a.id}
+                  activity={a}
+                  onPress={
+                    a.type === "expense"
+                      ? () => router.push({ pathname: "/(app)/expense/[id]", params: { id: a.id, groupId: a.groupId } })
+                      : undefined
+                  }
+                />
+              ))}
+            </View>
+          ))}
+        </ScrollView>
       )}
     </View>
   );

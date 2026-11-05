@@ -1,89 +1,75 @@
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useDeleteAccount } from "@/src/services/auth.service";
+import { useGroups } from "@/src/services/group.service";
+import { useTheme } from "@/src/theme/theme";
+import { Avatar } from "@/src/ui/Avatar";
+import { Moodling } from "@/src/ui/Moodling";
+import { PressableScale } from "@/src/ui/PressableScale";
+import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import {
-  Bell,
-  DollarSign,
-  HelpCircle,
-  Info,
-  Moon,
-  Users,
-} from "lucide-react-native";
-import React, { useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Image,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Bell, ChevronRight, HelpCircle, Info, SunMoon, type LucideIcon } from "lucide-react-native";
+import React, { useRef, useState } from "react";
+import { Alert, ScrollView, Switch, Text, View } from "react-native";
+import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
-const Index = () => {
+const VERSION_TAPS = 5;
+
+function SettingRow({
+  icon: Icon,
+  title,
+  value,
+  right,
+  onPress,
+}: {
+  icon: LucideIcon;
+  title: string;
+  value?: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <PressableScale static onPress={onPress} className="flex-row items-center gap-3 px-4 h-14">
+      <Icon size={20} color={colors.inkMuted} strokeWidth={2} />
+      <Text className="flex-1 text-ink font-manropeSemi text-base">{title}</Text>
+      <View className="flex-row items-center gap-1">
+        {right}
+        {value && <Text className="text-ink-muted font-manrope text-[15px]">{value}</Text>}
+        {onPress && <ChevronRight size={18} color={colors.inkFaint} />}
+      </View>
+    </PressableScale>
+  );
+}
+
+export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { colors } = useTheme();
   const deleteAccount = useDeleteAccount();
+  const { data: groups = [] } = useGroups();
+  const reduceMotion = useReducedMotion();
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
+  const [notifications, setNotifications] = useState(true);
+  const [secret, setSecret] = useState(false);
+  const taps = useRef(0);
 
-  if (!user) {
-    // Should never happen because of guards,
-    // but fail closed just in case
-    return null;
-  }
+  // Long-press the avatar for a spin.
+  const spin = useSharedValue(0);
+  const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
 
-  const settingsData = [
-    {
-      id: "edit",
-      title: "Edit Profile",
-      icon: <Users size={20} color="#3b82f6" />,
-      type: "link",
-    },
-    {
-      id: "currency",
-      title: "Currency",
-      value: "USD",
-      icon: <DollarSign size={20} color="#10b981" />,
-      type: "link",
-    },
-    {
-      id: "notif",
-      title: "Notifications",
-      icon: <Bell size={20} color="#3b82f6" />,
-      type: "switch",
-      state: notificationsEnabled,
-      setter: setNotificationsEnabled,
-    },
-    {
-      id: "dark",
-      title: "Dark Mode",
-      icon: <Moon size={20} color="#8b5cf6" />,
-      type: "switch",
-      state: darkModeEnabled,
-      setter: setDarkModeEnabled,
-    },
-    {
-      id: "help",
-      title: "Help & Support",
-      icon: <HelpCircle size={20} color="#3b82f6" />,
-      type: "link",
-    },
-    {
-      id: "about",
-      title: "About",
-      icon: <Info size={20} color="#3b82f6" />,
-      type: "link",
-    },
-  ];
+  if (!user) return null;
 
-  const handleLogout = async () => {
+  const people = new Set(groups.flatMap((g) => g.members.map((m) => m._id)).filter((id) => id !== user._id)).size;
+  // The mood follows the currency you have the most riding on.
+  const balance = groups.reduce((best, g) => (Math.abs(g.myBalanceCents) > Math.abs(best) ? g.myBalanceCents : best), 0);
+
+  const logOut = async () => {
     await signOut();
     router.replace("/(public)/auth/login");
   };
 
-  const confirmDeleteAccount = () =>
+  const confirmDelete = () =>
     Alert.alert(
       "Delete your account?",
       "You'll leave every group and can't sign back in. Expenses you were part of stay in the groups so everyone else's balances still add up.",
@@ -101,103 +87,83 @@ const Index = () => {
       ],
     );
 
-  const renderHeader = () => (
-    <View className="px-6 py-6 border-b border-white/5 bg-background-dark">
-      <Text className="text-4xl font-extrabold tracking-tight text-white font-manropeBold">
-        Profile
-      </Text>
-    </View>
-  );
+  const tapVersion = () => {
+    taps.current += 1;
+    if (taps.current < VERSION_TAPS) return;
+    taps.current = 0;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSecret((s) => !s);
+  };
 
-  const renderProfileCard = () => (
-    <View className="px-6 py-8 items-center">
-      <View className="relative">
-        <Image
-          source={{
-            uri: user.avatar ?? "https://i.pravatar.cc/150?img=12",
+  return (
+    <ScrollView className="flex-1 bg-bg" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <View className="items-center pt-8">
+        <PressableScale
+          onLongPress={() => {
+            if (reduceMotion) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            spin.set(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 0 })));
           }}
-          className="w-24 h-24 rounded-full border-4 border-surface-dark"
-        />
-        <View className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full items-center justify-center border-2 border-background-dark">
-          <Text className="text-[#0d1a0f] text-xs font-bold">✓</Text>
+          accessibilityLabel={`${user.name}'s photo`}
+        >
+          <Animated.View style={spinStyle}>
+            <Avatar user={user} size="xl" />
+          </Animated.View>
+        </PressableScale>
+        <Text className="text-ink font-manropeHeavy text-2xl mt-4">{user.name}</Text>
+        <Text className="text-ink-muted font-manrope text-[15px] mt-1">{user.email}</Text>
+      </View>
+
+      <View className="flex-row gap-3 mt-8">
+        <View className="flex-1 bg-surface rounded-3xl p-4">
+          <Text className="text-ink font-manropeHeavy text-3xl" style={{ fontVariant: ["tabular-nums"] }}>
+            {groups.length}
+          </Text>
+          <Text className="text-ink-muted font-manropeSemi text-[13px] mt-1">{groups.length === 1 ? "group" : "groups"}</Text>
+        </View>
+        <View className="flex-1 bg-surface rounded-3xl p-4">
+          <Text className="text-ink font-manropeHeavy text-3xl" style={{ fontVariant: ["tabular-nums"] }}>
+            {people}
+          </Text>
+          <Text className="text-ink-muted font-manropeSemi text-[13px] mt-1">{people === 1 ? "person" : "people"}</Text>
+        </View>
+        <View className="flex-1 bg-surface rounded-3xl items-center justify-center">
+          <Moodling balanceCents={balance} size={64} />
         </View>
       </View>
 
-      <Text className="text-white text-2xl font-bold mt-4">{user.name}</Text>
-      <Text className="text-slate-400 text-base mt-1">{user.email}</Text>
-    </View>
-  );
+      <View className="bg-surface rounded-3xl mt-6 overflow-hidden">
+        <SettingRow
+          icon={Bell}
+          title="Notifications"
+          right={
+            <Switch value={notifications} onValueChange={setNotifications} trackColor={{ false: colors.surfaceMuted, true: "#13EC5B" }} />
+          }
+        />
+        <View className="h-px bg-line ml-12" />
+        <SettingRow icon={SunMoon} title="Appearance" value="Matches your phone" />
+        <View className="h-px bg-line ml-12" />
+        <SettingRow icon={HelpCircle} title="Help & support" onPress={() => {}} />
+        <View className="h-px bg-line ml-12" />
+        <SettingRow icon={Info} title="About" onPress={() => {}} />
+      </View>
 
-  const renderFooter = () => (
-    <View className="px-6 py-8">
-      <TouchableOpacity
-        onPress={handleLogout}
-        className="rounded-xl py-4 items-center border border-red-500/20 mb-8"
-        activeOpacity={0.8}
-      >
-        <Text className="text-red-500 text-lg font-bold">Log Out</Text>
-      </TouchableOpacity>
+      <PressableScale haptic onPress={logOut} className="bg-surface rounded-full py-4 items-center mt-6">
+        <Text className="text-neg font-manropeBold text-base">Log out</Text>
+      </PressableScale>
 
-      <TouchableOpacity
-        onPress={confirmDeleteAccount}
-        disabled={deleteAccount.isPending}
-        className="items-center mb-8"
-        activeOpacity={0.8}
-      >
-        <Text className="text-slate-500 text-sm font-manrope underline">
-          {deleteAccount.isPending ? "Deleting…" : "Delete account"}
-        </Text>
-      </TouchableOpacity>
+      <PressableScale static onPress={confirmDelete} disabled={deleteAccount.isPending} className="items-center py-3 mt-3">
+        <Text className="text-ink-muted font-manropeSemi text-sm">{deleteAccount.isPending ? "Deleting…" : "Delete account"}</Text>
+      </PressableScale>
 
-      <Text className="text-slate-500 text-sm font-medium text-center">
-        Version 1.0.0 • Build 100
-      </Text>
-    </View>
-  );
-
-  return (
-    <View className="flex-1 bg-background-dark">
-      {renderHeader()}
-
-      <FlatList
-        data={settingsData}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderProfileCard}
-        ListFooterComponent={renderFooter}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        renderItem={({ item }) => (
-          <View className="px-6 mb-3">
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="flex-row items-center bg-surface-dark rounded-xl p-4 border border-white/5"
-            >
-              <View className="w-10 h-10 rounded-full items-center justify-center bg-white/5 mr-3">
-                {item.icon}
-              </View>
-
-              <Text className="flex-1 text-white text-base">{item.title}</Text>
-
-              {item.type === "switch" ? (
-                <Switch
-                  value={item.state}
-                  onValueChange={item.setter}
-                  trackColor={{ false: "#334155", true: "#13ec5b" }}
-                />
-              ) : (
-                <View className="flex-row items-center">
-                  {item.value && (
-                    <Text className="text-slate-400 mr-2">{item.value}</Text>
-                  )}
-                  <Text className="text-slate-400 text-xl">›</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+      <PressableScale static onPress={tapVersion} accessibilityLabel="App version" className="items-center py-3 mt-4">
+        <Text className="text-ink-faint font-manrope text-xs">Version {Constants.expoConfig?.version ?? "1.0.0"}</Text>
+        {secret && (
+          <Animated.Text entering={FadeInDown.duration(300)} className="text-ink-muted font-manropeSemi text-xs mt-1">
+            No cents were harmed in the making of this app.
+          </Animated.Text>
         )}
-      />
-    </View>
+      </PressableScale>
+    </ScrollView>
   );
-};
-
-export default Index;
+}
