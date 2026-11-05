@@ -1,40 +1,23 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { Cents } from "../domain/money";
 import { Settlement } from "../types";
 import { apiRequest } from "./client";
-import { groupKeys } from "./group.service";
+import { useRefreshGroup } from "./group.service";
 
 export function useCreateSettlement() {
-  const queryClient = useQueryClient();
-
+  const refresh = useRefreshGroup();
   return useMutation({
-    mutationFn: async (data: {
-      groupId: string;
-      paidTo: string;
-      amount: number;
-      note?: string;
-    }) => {
-      return apiRequest<Settlement>("/api/settlements", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: async (_, variables) => {
-      // Remove stale cache data for immediate UI updates in mobile
-      queryClient.removeQueries({
-        queryKey: groupKeys.detail(variables.groupId),
-      });
+    mutationFn: (data: { groupId: string; paidTo: string; amountCents: Cents; note?: string }) =>
+      apiRequest<Settlement>("/api/settlements", { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: (_, variables) => refresh(variables.groupId),
+  });
+}
 
-      // Force immediate refetch of group details
-      await queryClient.refetchQueries({
-        queryKey: groupKeys.detail(variables.groupId),
-        type: "active",
-      });
-
-      // Aggressively invalidate group lists for mobile responsiveness
-      queryClient.invalidateQueries({
-        queryKey: groupKeys.lists(),
-        refetchType: "all",
-      });
-    },
+export function useDeleteSettlement() {
+  const refresh = useRefreshGroup();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; groupId: string }) =>
+      apiRequest<{ deleted: true }>(`/api/settlements/${id}`, { method: "DELETE" }),
+    onSuccess: (_, variables) => refresh(variables.groupId),
   });
 }

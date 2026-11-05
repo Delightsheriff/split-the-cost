@@ -1,19 +1,15 @@
+import { formatMoney, type Cents } from "@/src/domain/money";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 interface BalanceCardProps {
-  amount: string;
-  isOwed: boolean;
-  userBalance: number;
+  /** Positive when you're owed, negative when you owe. */
+  balanceCents: Cents;
+  currency: string;
   onPress: () => void;
 }
 
-const BalanceCard = ({
-  amount,
-  isOwed,
-  userBalance,
-  onPress,
-}: BalanceCardProps) => (
+const BalanceCard = ({ balanceCents, currency, onPress }: BalanceCardProps) => (
   <TouchableOpacity
     onPress={onPress}
     activeOpacity={0.9}
@@ -27,19 +23,19 @@ const BalanceCard = ({
         numberOfLines={2}
         adjustsFontSizeToFit
         className={`text-5xl font-extrabold font-manropeBold mb-2 p-2 ${
-          userBalance === 0
+          balanceCents === 0
             ? "text-slate-400"
-            : isOwed
+            : balanceCents > 0
               ? "text-primary"
               : "text-red-400"
         }`}
       >
-        ${amount}
+        {formatMoney(Math.abs(balanceCents), currency)}
       </Text>
       <Text className="text-slate-400 text-sm font-manrope">
-        {userBalance === 0
+        {balanceCents === 0
           ? "All settled up!"
-          : isOwed
+          : balanceCents > 0
             ? "You are owed overall"
             : "You owe overall"}
       </Text>

@@ -5,13 +5,14 @@ interface BaseActivity {
   id: string;
   groupId: string;
   groupName: string;
+  currency: string;
   date: string;
 }
 
 export interface ExpenseActivity extends BaseActivity {
   type: "expense";
   description: string;
-  amount: number;
+  amountCents: number;
   expenseType: string;
   paidBy: {
     id: string;
@@ -22,7 +23,7 @@ export interface ExpenseActivity extends BaseActivity {
 
 export interface SettlementActivity extends BaseActivity {
   type: "settlement";
-  amount: number;
+  amountCents: number;
   note?: string;
   paidBy: {
     id: string;

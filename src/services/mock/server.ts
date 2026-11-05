@@ -1,4 +1,4 @@
-import { netBalances, pairBalances, simplifyDebts, type Ledger } from "@/src/domain/balances";
+import { netBalances, simplifyDebts, type Ledger } from "@/src/domain/balances";
 import { DEFAULT_CURRENCY } from "@/src/domain/money";
 import { computeShares, SplitError, type Split } from "@/src/domain/splits";
 import {
@@ -219,10 +219,7 @@ async function handle(db: MockDb, method: string, path: string, query: Map<strin
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((s) => ({ ...s, paidBy: publicUser(db, s.paidBy), paidTo: publicUser(db, s.paidTo) })),
       myBalanceCents: net.get(me._id) ?? 0,
-      // Everyone you've shared an expense with, including people who have since left.
-      pairBalances: [...new Set([...group.members, ...pairBalances(l, me._id).keys()])]
-        .filter((id) => id !== me._id)
-        .map((id) => ({ ...publicUser(db, id), userId: id, balanceCents: pairBalances(l, me._id).get(id) ?? 0 })),
+      // Who pays whom. This is the only view of debts, so it includes people who have since left.
       suggestedPayments: simplifyDebts(net).map((p) => ({
         from: publicUser(db, p.from),
         to: publicUser(db, p.to),
@@ -321,12 +318,9 @@ async function handle(db: MockDb, method: string, path: string, query: Map<strin
     const amountCents = Number(body.amountCents);
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0) fail(400, "Amount must be more than zero");
 
-    // You can pay what you owe them directly, or what you owe the group overall
-    // (a simplified plan may route your debt through someone you never shared an expense with).
-    const l = ledger(db, group._id);
-    const owedToThem = Math.max(0, -(pairBalances(l, me._id).get(paidTo) ?? 0));
-    const owedOverall = Math.max(0, -(netBalances(l).get(me._id) ?? 0));
-    const limit = Math.max(owedToThem, owedOverall);
+    // Debts are simplified across the group, so a payment can go to anyone in it,
+    // up to what you owe overall.
+    const limit = Math.max(0, -myBalance(db, group._id, me._id));
     if (limit === 0) fail(400, "You don't owe anything in this group");
     if (amountCents > limit) fail(400, `Cannot settle more than you owe (${limit} cents)`);
 

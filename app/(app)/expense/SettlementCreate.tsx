@@ -1,4 +1,5 @@
 import UserAvatar from "@/src/components/ui/UserAvatar";
+import { centsToInput, formatMoney, parseCents } from "@/src/domain/money";
 import { useGroupDetails } from "@/src/services/group.service";
 import { useCreateSettlement } from "@/src/services/settlement.service";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -18,24 +19,26 @@ export default function SettlementCreate() {
   const {
     groupId,
     paidTo,
-    amount: initialAmount,
+    amountCents: owedCents,
   } = useLocalSearchParams<{
     groupId: string;
     paidTo: string;
-    amount: string;
+    amountCents: string;
   }>();
 
   const router = useRouter();
   const { data, isLoading: groupLoading } = useGroupDetails(groupId);
   const createSettlement = useCreateSettlement();
 
-  const [amount] = useState(initialAmount || "");
+  // Starts at the full amount owed; it can be lowered to record a partial payment.
+  const [amount, setAmount] = useState(owedCents ? centsToInput(Number(owedCents)) : "");
 
   const paidToMember = data?.group.members.find((m) => m._id === paidTo);
   const isSubmitting = createSettlement.isPending;
 
   const handleSubmit = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
+    const amountCents = parseCents(amount);
+    if (!amountCents) {
       Alert.alert("Invalid Amount", "Please enter a valid amount");
       return;
     }
@@ -45,7 +48,7 @@ export default function SettlementCreate() {
         {
           groupId,
           paidTo,
-          amount: parseFloat(amount),
+          amountCents,
         },
         {
           onSuccess: () => {
@@ -53,16 +56,11 @@ export default function SettlementCreate() {
           },
         },
       );
-    } catch (error: any) {
-      const errorMessage = error?.message || "Failed to record payment";
-
-      if (errorMessage.includes("Cannot settle more than you owe")) {
-        Alert.alert("Overpayment Detected", errorMessage);
-      } else if (errorMessage.includes("don't owe this person")) {
-        Alert.alert("Invalid Settlement", errorMessage);
-      } else {
-        Alert.alert("Error", errorMessage);
-      }
+    } catch (error) {
+      Alert.alert(
+        "Couldn't record payment",
+        error instanceof Error ? error.message : "Failed to record payment",
+      );
     }
   };
 
@@ -118,18 +116,18 @@ export default function SettlementCreate() {
 
           <View className="items-center mb-10">
             <View className="flex-row items-center">
-              <Text className="text-slate-400 text-5xl font-manropeBold mr-2">
-                $
-              </Text>
               <TextInput
-                className="text-white text-6xl font-manropeBold min-w-[150px]"
+                className="text-white text-6xl font-manropeBold min-w-[150px] text-center"
                 value={amount}
-                editable={false}
-                pointerEvents="none"
+                onChangeText={setAmount}
+                keyboardType="decimal-pad"
+                editable={!isSubmitting}
               />
             </View>
             <Text className="text-slate-500 text-xs font-manrope mt-2">
-              Amount you owe
+              {owedCents
+                ? `You owe ${formatMoney(Number(owedCents), data.group.currency)}`
+                : data.group.currency}
             </Text>
           </View>
 

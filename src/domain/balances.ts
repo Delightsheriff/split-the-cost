@@ -25,24 +25,6 @@ export function netBalances(ledger: Ledger): Map<string, Cents> {
   return net;
 }
 
-/** What each other person owes `me` directly: positive = they owe me, negative = I owe them. */
-export function pairBalances(ledger: Ledger, me: string): Map<string, Cents> {
-  const pairs = new Map<string, Cents>();
-  for (const e of ledger.expenses) {
-    for (const s of e.shares) {
-      if (s.userId === e.paidBy) continue;
-      if (e.paidBy === me) add(pairs, s.userId, s.cents);
-      if (s.userId === me) add(pairs, e.paidBy, -s.cents);
-    }
-  }
-  for (const s of ledger.settlements) {
-    if (s.paidBy === me) add(pairs, s.paidTo, s.cents);
-    if (s.paidTo === me) add(pairs, s.paidBy, -s.cents);
-  }
-  pairs.delete(me);
-  return pairs;
-}
-
 /**
  * A short list of payments that settles everyone: repeatedly pay the biggest creditor from the biggest debtor.
  * Needs at most n - 1 payments and never makes anyone pay more than they owe overall.

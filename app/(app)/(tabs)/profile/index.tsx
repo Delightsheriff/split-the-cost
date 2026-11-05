@@ -1,4 +1,5 @@
 import { useAuth } from "@/src/contexts/AuthContext";
+import { useDeleteAccount } from "@/src/services/auth.service";
 import { useRouter } from "expo-router";
 import {
   Bell,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  Alert,
   FlatList,
   Image,
   Switch,
@@ -21,6 +23,7 @@ import {
 const Index = () => {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const deleteAccount = useDeleteAccount();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
@@ -80,6 +83,24 @@ const Index = () => {
     router.replace("/(public)/auth/login");
   };
 
+  const confirmDeleteAccount = () =>
+    Alert.alert(
+      "Delete your account?",
+      "You'll leave every group and can't sign back in. Expenses you were part of stay in the groups so everyone else's balances still add up.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            deleteAccount.mutateAsync().then(
+              () => router.replace("/(public)"),
+              (error) => Alert.alert("Couldn't delete", error instanceof Error ? error.message : ""),
+            ),
+        },
+      ],
+    );
+
   const renderHeader = () => (
     <View className="px-6 py-6 border-b border-white/5 bg-background-dark">
       <Text className="text-4xl font-extrabold tracking-tight text-white font-manropeBold">
@@ -115,6 +136,17 @@ const Index = () => {
         activeOpacity={0.8}
       >
         <Text className="text-red-500 text-lg font-bold">Log Out</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={confirmDeleteAccount}
+        disabled={deleteAccount.isPending}
+        className="items-center mb-8"
+        activeOpacity={0.8}
+      >
+        <Text className="text-slate-500 text-sm font-manrope underline">
+          {deleteAccount.isPending ? "Deleting…" : "Delete account"}
+        </Text>
       </TouchableOpacity>
 
       <Text className="text-slate-500 text-sm font-medium text-center">

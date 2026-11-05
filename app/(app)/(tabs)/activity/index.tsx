@@ -1,3 +1,4 @@
+import { formatMoney } from "@/src/domain/money";
 import { Activity, useActivities } from "@/src/services/activity.service";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
@@ -146,7 +147,7 @@ export default function ActivityScreen() {
 
           <View className="items-end">
             <Text className="text-primary text-lg font-bold font-manropeBold mb-1">
-              ${activity.amount.toFixed(2)}
+              {formatMoney(activity.amountCents, activity.currency)}
             </Text>
             <Text className="text-slate-500 text-xs font-medium font-manrope">
               {activity.groupName}

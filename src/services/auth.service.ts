@@ -32,6 +32,16 @@ export function useLogin() {
   });
 }
 
+/** Deletes the signed-in account for good, then signs out. */
+export function useDeleteAccount() {
+  const { signOut } = useAuth();
+
+  return useMutation({
+    mutationFn: () => apiRequest<{ deleted: true }>("/api/auth/me", { method: "DELETE" }),
+    onSuccess: () => signOut(),
+  });
+}
+
 export function useRegister() {
   const { signIn } = useAuth();
 

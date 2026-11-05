@@ -1,35 +1,31 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Expense } from "../types";
+import { useMutation } from "@tanstack/react-query";
+import { Expense, ExpenseInput } from "../types";
 import { apiRequest } from "./client";
-import { groupKeys } from "./group.service";
+import { useRefreshGroup } from "./group.service";
 
 export function useCreateExpense() {
-  const queryClient = useQueryClient();
-
+  const refresh = useRefreshGroup();
   return useMutation({
-    mutationFn: (data: {
-      groupId: string;
-      description: string;
-      amount: number;
-      type: "food" | "transport" | "supplies" | "fuel" | "other";
-      paidBy: string;
-      splitBetween: string[];
-    }) =>
-      apiRequest<Expense>("/api/expenses", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: async (newExpense, variables) => {
-      await queryClient.invalidateQueries({
-        queryKey: groupKeys.details(),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: groupKeys.detail(variables.groupId),
-      });
+    mutationFn: (data: ExpenseInput) =>
+      apiRequest<Expense>("/api/expenses", { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: (_, variables) => refresh(variables.groupId),
+  });
+}
 
-      await queryClient.invalidateQueries({
-        queryKey: groupKeys.lists(),
-      });
-    },
+export function useUpdateExpense() {
+  const refresh = useRefreshGroup();
+  return useMutation({
+    mutationFn: ({ id, ...changes }: Partial<ExpenseInput> & { id: string }) =>
+      apiRequest<Expense>(`/api/expenses/${id}`, { method: "PATCH", body: JSON.stringify(changes) }),
+    onSuccess: (expense) => refresh(expense.groupId),
+  });
+}
+
+export function useDeleteExpense() {
+  const refresh = useRefreshGroup();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; groupId: string }) =>
+      apiRequest<{ deleted: true }>(`/api/expenses/${id}`, { method: "DELETE" }),
+    onSuccess: (_, variables) => refresh(variables.groupId),
   });
 }

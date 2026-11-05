@@ -99,6 +99,17 @@ describe("settlements", () => {
     expect((await kemi.get("/api/groups/g_trip/details")).myBalanceCents).toBe(myBalanceCents);
   });
 
+  it("follows the simplified plan, even to someone you never shared an expense with", async () => {
+    // In Flat 4B the plan has Ada paying Femi, though Ada's debt is partly to you.
+    const ada = as("mock.u_ada");
+    const { suggestedPayments } = await ada.get("/api/groups/g_flat/details");
+    const toFemi = suggestedPayments.find((p: { to: { _id: string } }) => p.to._id === "u_femi");
+    await ada.post("/api/settlements", { groupId: "g_flat", paidTo: "u_femi", amountCents: toFemi.cents });
+    const after = await ada.get("/api/groups/g_flat/details");
+    expect(after.myBalanceCents).toBe(0);
+    expect(after.suggestedPayments.every((p: { from: { _id: string } }) => p.from._id !== "u_ada")).toBe(true);
+  });
+
   it("stops someone who is owed from paying", async () => {
     await expect(you().post("/api/settlements", { groupId: "g_trip", paidTo: "u_ada", amountCents: 100 })).rejects.toThrow(
       "You don't owe anything",
@@ -151,7 +162,7 @@ describe("account deletion", () => {
     const details = await you().get("/api/groups/g_trip/details");
     expect(details.group.members.map((m: { _id: string }) => m._id)).not.toContain("u_tari");
     expect(details.expenses.find((e: { description: string }) => e.description === "Suya by the lodge").paidBy.name).toBe("Deleted user");
-    // Still listed so what they owed you isn't silently dropped.
-    expect(details.pairBalances.find((p: { userId: string }) => p.userId === "u_tari")).toBeDefined();
+    // Still in the plan so what they owed isn't silently dropped.
+    expect(details.suggestedPayments.some((p: { from: { _id: string } }) => p.from._id === "u_tari")).toBe(true);
   });
 });

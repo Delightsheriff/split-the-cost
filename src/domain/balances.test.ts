@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { netBalances, pairBalances, simplifyDebts, type Ledger } from "./balances";
+import { netBalances, simplifyDebts, type Ledger } from "./balances";
 import { computeShares } from "./splits";
 
 const expense = (paidBy: string, cents: number, members: string[]) => ({
@@ -34,20 +34,6 @@ describe("netBalances", () => {
     const net = netBalances({ expenses: [expense("a", 1000, ["a", "b"])], settlements: [{ paidBy: "b", paidTo: "a", cents: 500 }] });
     expect(net.get("a")).toBe(0);
     expect(net.get("b")).toBe(0);
-  });
-});
-
-describe("pairBalances", () => {
-  it("shows who owes me and whom I owe", () => {
-    const pairs = pairBalances(trip, "you");
-    expect(pairs.get("kemi")).toBe(3000);
-    expect(pairs.get("tari")).toBe(3000 - 1163);
-    expect(pairs.get("ada")).toBe(3000 - 2250);
-    expect(pairs.has("you")).toBe(false);
-  });
-
-  it("is the mirror image from the other side", () => {
-    expect(pairBalances(trip, "tari").get("you")).toBe(-pairBalances(trip, "you").get("tari")!);
   });
 });
 

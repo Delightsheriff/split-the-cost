@@ -1,27 +1,36 @@
 import BalanceCard from "@/src/components/ui/BalanceCard";
 import { ExpenseIcon } from "@/src/components/ui/ExpenseIcon";
 import { useAuth } from "@/src/contexts/AuthContext";
-import { useGroupDetails } from "@/src/services/group.service";
+import { formatMoney, type Cents } from "@/src/domain/money";
+import {
+  useDeleteGroup,
+  useGroupDetails,
+  useLeaveGroup,
+  useUpdateGroup,
+} from "@/src/services/group.service";
+import { useDeleteSettlement } from "@/src/services/settlement.service";
+import * as Linking from "expo-linking";
 import {
   Stack,
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { Plus } from "lucide-react-native";
+import { Ellipsis, Plus } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
   ScrollView,
+  Share,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-
-const SETTLEMENT_THRESHOLD = 0.01;
 
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,6 +39,10 @@ export default function GroupDetails() {
   const [showBalancesModal, setShowBalancesModal] = useState(false);
 
   const { data, isLoading, refetch } = useGroupDetails(id || "");
+  const updateGroup = useUpdateGroup();
+  const leaveGroup = useLeaveGroup();
+  const deleteGroup = useDeleteGroup();
+  const deleteSettlement = useDeleteSettlement();
 
   useFocusEffect(
     useCallback(() => {
@@ -45,16 +58,93 @@ export default function GroupDetails() {
     );
   }
 
-  const { group, expenses, currentUserBalance, pairBalances } = data;
+  const { group, expenses, settlements, myBalanceCents, suggestedPayments } = data;
+  const money = (cents: Cents) => formatMoney(cents, group.currency);
+  const isCreator = group.createdBy === user?._id;
 
-  const balanceAmount = Math.abs(currentUserBalance.balance).toFixed(2);
+  const iPay = suggestedPayments.filter((p) => p.from._id === user?._id);
+  const iGet = suggestedPayments.filter((p) => p.to._id === user?._id);
+  const between = suggestedPayments.filter((p) => p.from._id !== user?._id && p.to._id !== user?._id);
+  const myPayments = settlements.filter(
+    (s) => s.paidBy._id === user?._id || s.paidTo._id === user?._id,
+  );
 
-  const membersWhoOweMe = pairBalances.filter(
-    (b) => b.balance > SETTLEMENT_THRESHOLD,
-  );
-  const membersIOwe = pairBalances.filter(
-    (b) => b.balance < -SETTLEMENT_THRESHOLD,
-  );
+  const settleWith = (paidTo: string, amountCents: Cents) => {
+    setShowBalancesModal(false);
+    router.push({
+      pathname: "/(app)/expense/SettlementCreate",
+      params: { groupId: id, paidTo, amountCents: String(amountCents) },
+    });
+  };
+
+  const fail = (title: string) => (error: unknown) =>
+    Alert.alert(title, error instanceof Error ? error.message : "Something went wrong");
+
+  const shareInvite = () =>
+    Share.share({
+      message: `Join "${group.name}" on Split the Cost: ${Linking.createURL(`join/${group.inviteCode}`)}`,
+    });
+
+  const rename = () =>
+    Alert.prompt(
+      "Rename group",
+      undefined,
+      (name) => name && updateGroup.mutateAsync({ id: group._id, name }).catch(fail("Couldn't rename")),
+      "plain-text",
+      group.name,
+    );
+
+  const leave = () =>
+    Alert.alert("Leave this group?", "You'll stop seeing its expenses.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: () =>
+          leaveGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't leave")),
+      },
+    ]);
+
+  const remove = () =>
+    Alert.alert("Delete this group?", "Every expense and payment in it is deleted for everyone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () =>
+          deleteGroup.mutateAsync(group._id).then(() => router.back(), fail("Couldn't delete")),
+      },
+    ]);
+
+  const openMenu = () => {
+    const actions = [
+      { label: "Share invite link", run: shareInvite },
+      { label: "Rename group", run: rename },
+      { label: "Leave group", run: leave, destructive: true },
+      ...(isCreator ? [{ label: "Delete group", run: remove, destructive: true }] : []),
+    ];
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...actions.map((a) => a.label), "Cancel"],
+        cancelButtonIndex: actions.length,
+        destructiveButtonIndex: actions.flatMap((a, i) => (a.destructive ? [i] : [])),
+      },
+      (index) => actions[index]?.run(),
+    );
+  };
+
+  const undoPayment = (settlementId: string) =>
+    Alert.alert("Undo this payment?", "The balances go back to how they were before it.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Undo",
+        style: "destructive",
+        onPress: () =>
+          deleteSettlement
+            .mutateAsync({ id: settlementId, groupId: group._id })
+            .catch(fail("Couldn't undo")),
+      },
+    ]);
 
   const renderExpenseItem = ({ item }: { item: (typeof expenses)[0] }) => {
     const userPaid = item.paidBy._id === user?._id;
@@ -81,7 +171,7 @@ export default function GroupDetails() {
           </View>
           <View className="items-end">
             <Text className="text-white text-lg font-bold font-manropeBold">
-              ${item.amount.toFixed(2)}
+              {money(item.amountCents)}
             </Text>
             {userPaid ? (
               <Text className="text-primary text-xs font-bold font-manrope">
@@ -89,7 +179,7 @@ export default function GroupDetails() {
               </Text>
             ) : (
               <Text className="text-slate-400 text-xs font-bold font-manrope">
-                Split
+                {item.split.type === "equal" ? "Split" : `Split by ${item.split.type}`}
               </Text>
             )}
           </View>
@@ -100,16 +190,24 @@ export default function GroupDetails() {
 
   return (
     <View className="flex-1 bg-background-dark">
-      <Stack.Screen options={{ title: group.name }} />
+      <Stack.Screen
+        options={{
+          title: group.name,
+          headerRight: () => (
+            <Pressable onPress={openMenu} hitSlop={12} accessibilityLabel="Group options">
+              <Ellipsis size={22} color="#ffffff" />
+            </Pressable>
+          ),
+        }}
+      />
       <FlatList
         data={expenses}
         keyExtractor={(item) => item._id}
         renderItem={renderExpenseItem}
         ListHeaderComponent={
           <BalanceCard
-            amount={balanceAmount}
-            isOwed={currentUserBalance.isOwed}
-            userBalance={currentUserBalance.balance}
+            balanceCents={myBalanceCents}
+            currency={group.currency}
             onPress={() => setShowBalancesModal(true)}
           />
         }
@@ -131,6 +229,7 @@ export default function GroupDetails() {
         visible={showBalancesModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setShowBalancesModal(false)}
       >
         <View className="flex-1 bg-background-dark">
           <View className="px-6 py-6 border-b border-white/5 flex-row items-center justify-between">
@@ -151,84 +250,114 @@ export default function GroupDetails() {
               </Text>
               <Text
                 className={`text-5xl font-extrabold font-manropeBold ${
-                  currentUserBalance.isSettled
+                  myBalanceCents === 0
                     ? "text-slate-400"
-                    : currentUserBalance.isOwed
+                    : myBalanceCents > 0
                       ? "text-primary"
                       : "text-red-400"
                 }`}
               >
-                ${balanceAmount}
+                {money(Math.abs(myBalanceCents))}
               </Text>
             </View>
             <View className="px-6 py-4">
-              {membersIOwe.length > 0 && (
+              {iPay.length > 0 && (
                 <View className="mb-6">
                   <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
                     You Owe
                   </Text>
-                  {membersIOwe.map((member) => (
+                  {iPay.map((p) => (
                     <View
-                      key={member.userId}
+                      key={p.to._id}
                       className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
                     >
-                      <View className="flex-1">
-                        <Text className="text-white text-base font-semibold">
-                          {member.name}
-                        </Text>
-                        <Text className="text-slate-400 text-xs">You owe</Text>
-                      </View>
+                      <Text className="flex-1 text-white text-base font-semibold">{p.to.name}</Text>
                       <TouchableOpacity
-                        onPress={() => {
-                          setShowBalancesModal(false);
-                          router.push({
-                            pathname: "/(app)/expense/SettlementCreate",
-                            params: {
-                              groupId: id,
-                              paidTo: member.userId,
-                              amount: Math.abs(member.balance).toFixed(2),
-                            },
-                          });
-                        }}
+                        onPress={() => settleWith(p.to._id, p.cents)}
                         className="bg-primary px-4 py-2 rounded-lg"
                       >
                         <Text className="text-background-dark text-xs font-manropeBold">
-                          Settle ${Math.abs(member.balance).toFixed(2)}
+                          Pay {money(p.cents)}
                         </Text>
                       </TouchableOpacity>
                     </View>
                   ))}
                 </View>
               )}
-              {membersWhoOweMe.length > 0 && (
-                <View>
+
+              {iGet.length > 0 && (
+                <View className="mb-6">
                   <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
                     Owes You
                   </Text>
-                  {membersWhoOweMe.map((member) => (
+                  {iGet.map((p) => (
                     <View
-                      key={member.userId}
+                      key={p.from._id}
                       className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
                     >
-                      <View className="flex-1">
-                        <Text className="text-white text-base font-semibold">
-                          {member.name}
-                        </Text>
-                        <Text className="text-slate-400 text-xs">Owes you</Text>
-                      </View>
+                      <Text className="flex-1 text-white text-base font-semibold">{p.from.name}</Text>
                       <Text className="text-primary text-lg font-bold font-manropeBold">
-                        ${member.balance.toFixed(2)}
+                        {money(p.cents)}
                       </Text>
                     </View>
                   ))}
                 </View>
               )}
 
-              {membersIOwe.length === 0 && membersWhoOweMe.length === 0 && (
+              {iPay.length === 0 && iGet.length === 0 && (
                 <View className="items-center py-12">
                   <Text className="text-slate-500 text-base font-manrope">
                     All settled up! 🎉
                   </Text>
+                </View>
+              )}
+
+              {between.length > 0 && (
+                <View className="mb-6">
+                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
+                    Everyone Else
+                  </Text>
+                  {between.map((p) => (
+                    <View
+                      key={`${p.from._id}-${p.to._id}`}
+                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
+                    >
+                      <Text className="flex-1 text-white text-base font-manrope">
+                        {p.from.name} → {p.to.name}
+                      </Text>
+                      <Text className="text-white text-base font-manropeBold">{money(p.cents)}</Text>
+                    </View>
+                  ))}
+                  <Text className="text-slate-500 text-xs font-manrope">
+                    Debts are simplified, so everyone is even after these payments.
+                  </Text>
+                </View>
+              )}
+
+              {myPayments.length > 0 && (
+                <View className="mb-6">
+                  <Text className="text-slate-400 text-xs uppercase tracking-wider font-manrope mb-3">
+                    Your Payments
+                  </Text>
+                  {myPayments.map((s) => (
+                    <View
+                      key={s._id}
+                      className="flex-row items-center bg-surface-dark rounded-xl p-4 mb-3 border border-white/5"
+                    >
+                      <View className="flex-1">
+                        <Text className="text-white text-base font-semibold">
+                          {s.paidBy._id === user?._id ? `You paid ${s.paidTo.name}` : `${s.paidBy.name} paid you`}
+                        </Text>
+                        <Text className="text-slate-400 text-xs">
+                          {money(s.amountCents)} ·{" "}
+                          {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => undoPayment(s._id)} hitSlop={8}>
+                        <Text className="text-red-400 text-xs font-manropeBold">Undo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
