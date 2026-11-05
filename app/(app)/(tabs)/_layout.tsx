@@ -1,58 +1,30 @@
-import { COLORS, TAB_BAR_CONFIG, TAB_LABEL_STYLE } from "@/src/constants/theme";
-import { Tabs } from "expo-router";
-import { ReceiptCentIcon, User, Users } from "lucide-react-native";
+import { accent } from "@/src/theme/tokens";
+import { NativeTabs } from "expo-router/native-tabs";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function AppLayout() {
+export default function TabsLayout() {
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    // The tab screens don't pad for the status bar themselves yet.
+    <View style={{ flex: 1, backgroundColor: "#102216" }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <Tabs
-          screenOptions={{
-            headerShown: false,
-            tabBarStyle: TAB_BAR_CONFIG,
-            tabBarActiveTintColor: COLORS.primary,
-            tabBarInactiveTintColor: COLORS.inactive,
-            tabBarLabelStyle: TAB_LABEL_STYLE,
-          }}
-        >
-          <Tabs.Screen
-            name="index"
-            options={{
-              title: "Groups",
-              tabBarIcon: ({ focused }) => (
-                <Users
-                  color={focused ? COLORS.primary : COLORS.inactive}
-                  fill={focused ? COLORS.primary : COLORS.inactive}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="activity"
-            options={{
-              title: "Activity",
-              tabBarIcon: ({ focused }) => (
-                <ReceiptCentIcon
-                  color={focused ? COLORS.primary : COLORS.inactive}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: "Profile",
-              tabBarIcon: ({ focused }) => (
-                <User
-                  color={focused ? COLORS.primary : COLORS.inactive}
-                  fill={focused ? COLORS.primary : COLORS.inactive}
-                />
-              ),
-            }}
-          />
-        </Tabs>
+        <NativeTabs tintColor={accent.settled} minimizeBehavior="onScrollDown">
+          <NativeTabs.Trigger name="index">
+            <NativeTabs.Trigger.Label>Groups</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Icon sf={{ default: "person.3", selected: "person.3.fill" }} md="group" />
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="activity">
+            <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Icon sf={{ default: "clock", selected: "clock.fill" }} md="history" />
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="profile">
+            <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Icon
+              sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }}
+              md="account_circle"
+            />
+          </NativeTabs.Trigger>
+        </NativeTabs>
       </SafeAreaView>
     </View>
   );
