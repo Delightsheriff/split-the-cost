@@ -8,6 +8,10 @@ type Person = { _id: string; name: string; avatar?: string };
 const SIZES = { xs: 24, sm: 32, md: 44, lg: 64, xl: 96 } as const;
 export type AvatarSize = keyof typeof SIZES;
 
+// The API's default avatar is a ui-avatars.com image of the same initial; drawing it
+// here matches the app and keeps names off a third-party server.
+const isPhoto = (url?: string): url is string => !!url && !url.startsWith("https://ui-avatars.com/");
+
 /** A person's photo, or their initial on their own colour. */
 export function Avatar({ user, size = "md", ring }: { user: Person; size?: AvatarSize; ring?: boolean }) {
   const d = SIZES[size];
@@ -18,7 +22,7 @@ export function Avatar({ user, size = "md", ring }: { user: Person; size?: Avata
     // A ring in the background colour separates overlapping avatars.
     ...(ring && { borderWidth: Math.max(2, d / 16) }),
   };
-  return user.avatar ? (
+  return isPhoto(user.avatar) ? (
     <Image source={{ uri: user.avatar }} style={frame} className={ring ? "border-bg" : ""} />
   ) : (
     <View style={[frame, { backgroundColor: memberColor(user._id) }]} className={`items-center justify-center ${ring ? "border-bg" : ""}`}>
