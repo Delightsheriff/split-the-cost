@@ -69,8 +69,9 @@ export default function CreateGroup() {
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-bg">
       <SheetHeader title="New group" onClose={() => router.back()} />
-      {/* Its own box, so the form sheet doesn't lift the scroll view over the header. */}
-      <View className="flex-1">
+      {/* Its own box, so the form sheet doesn't lift the scroll view over the header. collapsable={false} keeps
+          the box from being flattened away. */}
+      <View className="flex-1" collapsable={false}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}
           keyboardShouldPersistTaps="handled"

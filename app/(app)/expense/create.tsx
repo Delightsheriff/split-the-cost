@@ -249,8 +249,9 @@ function ExpenseForm({ details, expense }: { details: GroupDetails; expense?: Ex
             returnKeyType="done"
             maxLength={60}
           />
-          {/* A form sheet lifts its first scroll view to the top; a fixed-height box keeps this row in place. */}
-          <View style={{ height: 40 }}>
+          {/* A form sheet lifts its first scroll view to the top; a fixed-height box keeps this row in place.
+              collapsable={false} stops the box being flattened away, which would expose the scroll view again. */}
+          <View style={{ height: 40 }} collapsable={false}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {CATEGORIES.map((c) => {
                 const Icon = CATEGORY_ICONS[c];
