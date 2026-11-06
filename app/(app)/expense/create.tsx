@@ -15,8 +15,8 @@ import { PressableScale } from "@/src/ui/PressableScale";
 import { SheetHeader } from "@/src/ui/SheetHeader";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check, ChevronDown, ChevronUp } from "lucide-react-native";
-import React, { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View, type ScrollViewInstance } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -73,6 +73,14 @@ function recentDays(now: Date, keep?: Date) {
 
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
+/** "Today", "Yesterday", "Wed 4" within the strip, and "Oct 28" for an older day. */
+function chipLabel(d: Date, now: Date) {
+  const daysAgo = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - d.getTime()) / 86_400_000);
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  return d.toLocaleDateString("en-US", daysAgo < RECENT_DAYS ? { weekday: "short", day: "numeric" } : { month: "short", day: "numeric" });
+}
+
 export default function ExpenseSheet() {
   const { groupId, expenseId } = useLocalSearchParams<{
     groupId: string;
@@ -108,6 +116,7 @@ function ExpenseForm({ details, expense }: { details: GroupDetails; expense?: Ex
   const [description, setDescription] = useState(expense?.description ?? "");
   const [category, setCategory] = useState<ExpenseType>(expense?.type ?? "food");
   const [day, setDay] = useState(() => (expense ? new Date(expense.date) : now));
+  const dateStrip = useRef<ScrollViewInstance>(null);
 
   const [manyPayers, setManyPayers] = useState((expense?.payers.length ?? 1) > 1);
   const [paidBy, setPaidBy] = useState(expense?.paidBy._id ?? user?._id ?? "");
@@ -291,6 +300,7 @@ function ExpenseForm({ details, expense }: { details: GroupDetails; expense?: Ex
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
       >
         <Animated.View entering={FadeInDown.duration(300)} className="items-center pt-2">
           <DonutRing segments={segments} total={validAmount ?? 0}>
@@ -313,22 +323,16 @@ function ExpenseForm({ details, expense }: { details: GroupDetails; expense?: Ex
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(300).delay(100)} className="px-5 mt-4 gap-3">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {recentDays(now, expense ? new Date(expense.date) : undefined).map((d, i) => {
+          <ScrollView ref={dateStrip} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {recentDays(now, expense ? new Date(expense.date) : undefined).map((d) => {
               const on = sameDay(d, day);
-              const label =
-                i === 0
-                  ? "Today"
-                  : i === 1
-                    ? "Yesterday"
-                    : d.toLocaleDateString("en-US", {
-                        weekday: "short",
-                        day: "numeric",
-                      });
+              const label = chipLabel(d, now);
               return (
                 <PressableScale
                   key={d.toDateString()}
                   onPress={() => setDay(d)}
+                  // Bring the saved day into view when editing an older expense.
+                  onLayout={(e) => on && dateStrip.current?.scrollTo({ x: Math.max(0, e.nativeEvent.layout.x - 40), animated: false })}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
                   accessibilityLabel={d.toLocaleDateString("en-US", {
