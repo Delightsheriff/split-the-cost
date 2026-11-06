@@ -69,110 +69,118 @@ export default function CreateGroup() {
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-bg">
       <SheetHeader title="New group" onClose={() => router.back()} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-center gap-4">
-          <View className="w-16 h-16 rounded-[20px] bg-surface-muted items-center justify-center">
-            <Text className="text-ink font-manropeHeavy text-2xl">{initial || "?"}</Text>
-          </View>
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                editable={!busy}
-                autoFocus
-                placeholder="Group name"
-                placeholderTextColor={colors.inkFaint}
-                returnKeyType="next"
-                accessibilityLabel="Group name"
-                className="flex-1 text-ink font-manropeHeavy text-3xl"
-              />
-            )}
-          />
-        </View>
-        {errors.name && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.name.message}</Text>}
-
-        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Currency</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {CURRENCIES.map((c) => (
-            <PressableScale
-              key={c}
-              onPress={() => setCurrency(c)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: c === currency }}
-              className={`rounded-full px-4 py-2 ${c === currency ? "bg-ink" : "bg-surface"}`}
-            >
-              <Text className={`font-manropeBold text-sm ${c === currency ? "text-bg" : "text-ink-muted"}`}>{c}</Text>
-            </PressableScale>
-          ))}
-        </ScrollView>
-
-        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Who&apos;s in</Text>
-        <View className="bg-surface rounded-3xl px-4">
-          {members.map((m, i) => (
-            <Animated.View
-              key={m}
-              entering={FadeIn.duration(200)}
-              exiting={FadeOut.duration(150)}
-              layout={LinearTransition.duration(200)}
-              className={`flex-row items-center gap-3 py-3 ${i > 0 ? "border-t border-line" : ""}`}
-            >
-              <Avatar user={i === 0 && user ? user : { _id: m, name: m }} size="sm" />
-              <Text className="flex-1 text-ink font-manropeSemi text-[15px]" numberOfLines={1}>
-                {i === 0 ? "You" : m}
-              </Text>
-              {i > 0 && (
-                <PressableScale
-                  onPress={() =>
-                    setValue(
-                      "members",
-                      members.filter((x) => x !== m),
-                      { shouldValidate: isSubmitted },
-                    )
-                  }
-                  disabled={busy}
-                  hitSlop={10}
-                  accessibilityLabel={`Remove ${m}`}
-                  className="w-7 h-7 rounded-full bg-surface-muted items-center justify-center"
-                >
-                  <X size={14} color={colors.inkMuted} strokeWidth={2.5} />
-                </PressableScale>
+      {/* Its own box, so the form sheet doesn't lift the scroll view over the header. */}
+      <View className="flex-1">
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="flex-row items-center gap-4">
+            <View className="w-16 h-16 rounded-[20px] bg-surface-muted items-center justify-center">
+              <Text className="text-ink font-manropeHeavy text-2xl">{initial || "?"}</Text>
+            </View>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  editable={!busy}
+                  autoFocus
+                  placeholder="Group name"
+                  placeholderTextColor={colors.inkFaint}
+                  returnKeyType="next"
+                  accessibilityLabel="Group name"
+                  className="flex-1 text-ink font-manropeHeavy text-3xl"
+                />
               )}
-            </Animated.View>
-          ))}
-
-          <View className="flex-row items-center gap-3 py-2 border-t border-line">
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              onSubmitEditing={add}
-              editable={!busy}
-              placeholder="Add by email"
-              placeholderTextColor={colors.inkFaint}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              submitBehavior="submit"
-              accessibilityLabel="Member email"
-              className="flex-1 text-ink font-manropeSemi text-[15px] py-2"
             />
-            <PressableScale
-              onPress={add}
-              disabled={!canAdd || busy}
-              accessibilityLabel="Add member"
-              className="w-9 h-9 rounded-full bg-ink items-center justify-center"
-            >
-              <Plus size={18} color={colors.background} strokeWidth={2.75} />
-            </PressableScale>
           </View>
-        </View>
-        {errors.members && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.members.message}</Text>}
-        <Text className="text-ink-muted font-manrope text-[13px] mt-3">Add people now, or share an invite link from the group later.</Text>
-      </ScrollView>
+          {errors.name && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.name.message}</Text>}
+
+          <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Currency</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {CURRENCIES.map((c) => (
+              <PressableScale
+                key={c}
+                onPress={() => setCurrency(c)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: c === currency }}
+                className={`rounded-full px-4 py-2 ${c === currency ? "bg-ink" : "bg-surface"}`}
+              >
+                <Text className={`font-manropeBold text-sm ${c === currency ? "text-bg" : "text-ink-muted"}`}>{c}</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
+
+          <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Who&apos;s in</Text>
+          <View className="bg-surface rounded-3xl px-4">
+            {members.map((m, i) => (
+              <Animated.View
+                key={m}
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                layout={LinearTransition.duration(200)}
+                className={`flex-row items-center gap-3 py-3 ${i > 0 ? "border-t border-line" : ""}`}
+              >
+                <Avatar user={i === 0 && user ? user : { _id: m, name: m }} size="sm" />
+                <Text className="flex-1 text-ink font-manropeSemi text-[15px]" numberOfLines={1}>
+                  {i === 0 ? "You" : m}
+                </Text>
+                {i > 0 && (
+                  <PressableScale
+                    onPress={() =>
+                      setValue(
+                        "members",
+                        members.filter((x) => x !== m),
+                        { shouldValidate: isSubmitted },
+                      )
+                    }
+                    disabled={busy}
+                    hitSlop={10}
+                    accessibilityLabel={`Remove ${m}`}
+                    className="w-7 h-7 rounded-full bg-surface-muted items-center justify-center"
+                  >
+                    <X size={14} color={colors.inkMuted} strokeWidth={2.5} />
+                  </PressableScale>
+                )}
+              </Animated.View>
+            ))}
+
+            <View className="flex-row items-center gap-3 py-2 border-t border-line">
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                onSubmitEditing={add}
+                editable={!busy}
+                placeholder="Add by email"
+                placeholderTextColor={colors.inkFaint}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                submitBehavior="submit"
+                accessibilityLabel="Member email"
+                className="flex-1 text-ink font-manropeSemi text-[15px] py-2"
+              />
+              <PressableScale
+                onPress={add}
+                disabled={!canAdd || busy}
+                accessibilityLabel="Add member"
+                className="w-9 h-9 rounded-full bg-ink items-center justify-center"
+              >
+                <Plus size={18} color={colors.background} strokeWidth={2.75} />
+              </PressableScale>
+            </View>
+          </View>
+          {errors.members && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.members.message}</Text>}
+          <Text className="text-ink-muted font-manrope text-[13px] mt-3">
+            Add people now, or share an invite link from the group later.
+          </Text>
+        </ScrollView>
+      </View>
 
       <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 8 }}>
         <PressableScale
