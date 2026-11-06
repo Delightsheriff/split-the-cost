@@ -7,7 +7,7 @@ import { useRefreshGroup } from "./group.service";
 export function useCreateSettlement() {
   const refresh = useRefreshGroup();
   return useMutation({
-    mutationFn: (data: { groupId: string; paidTo: string; amountCents: Cents; note?: string }) =>
+    mutationFn: (data: { groupId: string; paidBy?: string; paidTo: string; amountCents: Cents; note?: string }) =>
       apiRequest<Settlement>("/api/settlements", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: (_, variables) => refresh(variables.groupId),
   });

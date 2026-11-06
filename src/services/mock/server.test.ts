@@ -116,6 +116,18 @@ describe("expenses", () => {
 });
 
 describe("settlements", () => {
+  it("lets the person being paid record it", async () => {
+    const tari = await as("mock.u_tari").get("/api/groups/g_trip/details");
+    await you().post("/api/settlements", { groupId: "g_trip", paidBy: "u_tari", paidTo: "u_you", amountCents: 500 });
+    expect((await as("mock.u_tari").get("/api/groups/g_trip/details")).myBalanceCents).toBe(tari.myBalanceCents + 500);
+  });
+
+  it("only records payments you're part of", async () => {
+    await expect(
+      you().post("/api/settlements", { groupId: "g_trip", paidBy: "u_tari", paidTo: "u_ada", amountCents: 100 }),
+    ).rejects.toThrow("You can only record payments you made or received");
+  });
+
   it("lets a debtor pay what they owe, not more", async () => {
     const kemi = as("mock.u_kemi");
     const { myBalanceCents } = await kemi.get("/api/groups/g_trip/details");

@@ -1,5 +1,5 @@
 import { netBalances, simplifyDebts, type Ledger } from "@/src/domain/balances";
-import { DEFAULT_CURRENCY } from "@/src/domain/money";
+import { DEFAULT_CURRENCY, formatMoney } from "@/src/domain/money";
 import { checkPayers, computeShares, mainPayer, SplitError, type Share, type Split } from "@/src/domain/splits";
 import {
   DEMO_USER_ID,
@@ -320,22 +320,26 @@ async function handle(db: MockDb, method: string, path: string, query: Map<strin
 
   if (route("POST", /^\/api\/settlements$/)) {
     const group = findGroup(db, body.groupId, me._id);
+    // Either side can record it: "I paid Ada" or "Tari paid me".
+    const paidBy = String(body.paidBy || me._id);
     const paidTo = String(body.paidTo);
-    if (paidTo === me._id) fail(400, "Cannot settle with yourself");
-    if (!group.members.includes(paidTo)) fail(400, "Cannot settle with user not in the group");
+    if (paidBy === paidTo) fail(400, "Cannot settle with yourself");
+    if (paidBy !== me._id && paidTo !== me._id) fail(403, "You can only record payments you made or received");
+    if (!group.members.includes(paidBy) || !group.members.includes(paidTo)) fail(400, "Cannot settle with user not in the group");
     const amountCents = Number(body.amountCents);
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0) fail(400, "Amount must be more than zero");
 
-    // Debts are simplified across the group, so a payment can go to anyone in it,
-    // up to what you owe overall.
-    const limit = Math.max(0, -myBalance(db, group._id, me._id));
-    if (limit === 0) fail(400, "You don't owe anything in this group");
-    if (amountCents > limit) fail(400, `Cannot settle more than you owe (${limit} cents)`);
+    // Debts are simplified across the group, so a payment can go to anyone in it (it records
+    // money that really moved), up to what the payer owes overall.
+    const owes = Math.max(0, -myBalance(db, group._id, paidBy));
+    const payer = paidBy === me._id ? "You" : publicUser(db, paidBy).name.split(" ")[0];
+    if (owes === 0) fail(400, `${payer} ${paidBy === me._id ? "don't" : "doesn't"} owe anything in this group`);
+    if (amountCents > owes) fail(400, `Cannot settle more than ${payer === "You" ? "you owe" : "they owe"} (${formatMoney(owes, group.currency)})`);
 
     const settlement = {
       _id: newId("s"),
       groupId: group._id,
-      paidBy: me._id,
+      paidBy,
       paidTo,
       amountCents,
       note: body.note ? String(body.note) : undefined,
@@ -345,7 +349,7 @@ async function handle(db: MockDb, method: string, path: string, query: Map<strin
     };
     db.settlements.push(settlement);
     touch(group);
-    return { ...settlement, paidBy: publicUser(db, me._id), paidTo: publicUser(db, paidTo) };
+    return { ...settlement, paidBy: publicUser(db, paidBy), paidTo: publicUser(db, paidTo) };
   }
 
   if ((match = route("DELETE", /^\/api\/settlements\/([^/]+)$/))) {
