@@ -30,7 +30,7 @@ export default function AppStackLayout() {
       <Stack.Screen
         name="group/[id]"
         options={{
-          title: "Group Details", // Default title
+          title: "", // The screen sets the group's name once it loads.
           headerShown: true,
           presentation: "card", // Standard slide-in from right
           headerBackTitle: "Back",
