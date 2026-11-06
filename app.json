@@ -4,9 +4,15 @@
     "slug": "split-the-cost-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "splitthecostapp",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
+      },
       "supportsTablet": false,
       "bundleIdentifier": "com.delightsheriff.splitthecost",
       "config": {
@@ -15,7 +21,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/adaptive-icon-mono.png",
+        "backgroundColor": "#0B0B0D"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.delightsheriff.splitthecost"
