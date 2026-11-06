@@ -6,12 +6,16 @@ import { Avatar } from "@/src/ui/Avatar";
 import { PressableScale } from "@/src/ui/PressableScale";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
+import { SheetHeader } from "@/src/ui/SheetHeader";
 import { Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// All two-decimal currencies, so amounts stay in cents everywhere.
+const CURRENCIES = ["USD", "NGN", "EUR", "GBP", "GHS", "KES", "ZAR", "CAD"];
 
 export default function CreateGroup() {
   const { user } = useAuth();
@@ -20,6 +24,7 @@ export default function CreateGroup() {
   const insets = useSafeAreaInsets();
   const createGroup = useCreateGroup();
   const [email, setEmail] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const me = user?.email ?? "";
 
   const {
@@ -48,8 +53,14 @@ export default function CreateGroup() {
 
   const onSubmit = async (data: GroupForm) => {
     try {
-      await createGroup.mutateAsync({ name: data.name.trim(), members: [...new Set(data.members.map((e) => e.toLowerCase().trim()))] });
+      const group = await createGroup.mutateAsync({
+        name: data.name.trim(),
+        currency,
+        members: [...new Set(data.members.map((e) => e.toLowerCase().trim()))],
+      });
+      // Close the sheet and land in the new group, ready for its first expense.
       router.back();
+      router.push({ pathname: "/(app)/group/[id]", params: { id: group._id } });
     } catch (error) {
       Alert.alert("Couldn't create group", error instanceof Error ? error.message : "");
     }
@@ -57,7 +68,8 @@ export default function CreateGroup() {
 
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-bg">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+      <SheetHeader title="New group" onClose={() => router.back()} />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-4">
           <View className="w-16 h-16 rounded-[20px] bg-surface-muted items-center justify-center">
             <Text className="text-ink font-manropeHeavy text-2xl">{initial || "?"}</Text>
@@ -83,7 +95,22 @@ export default function CreateGroup() {
         </View>
         {errors.name && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.name.message}</Text>}
 
-        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-10 mb-2">Who&apos;s in</Text>
+        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Currency</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {CURRENCIES.map((c) => (
+            <PressableScale
+              key={c}
+              onPress={() => setCurrency(c)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: c === currency }}
+              className={`rounded-full px-4 py-2 ${c === currency ? "bg-ink" : "bg-surface"}`}
+            >
+              <Text className={`font-manropeBold text-sm ${c === currency ? "text-bg" : "text-ink-muted"}`}>{c}</Text>
+            </PressableScale>
+          ))}
+        </ScrollView>
+
+        <Text className="text-ink-faint font-manropeBold text-xs uppercase tracking-widest mt-8 mb-2">Who&apos;s in</Text>
         <View className="bg-surface rounded-3xl px-4">
           {members.map((m, i) => (
             <Animated.View
@@ -99,7 +126,13 @@ export default function CreateGroup() {
               </Text>
               {i > 0 && (
                 <PressableScale
-                  onPress={() => setValue("members", members.filter((x) => x !== m), { shouldValidate: isSubmitted })}
+                  onPress={() =>
+                    setValue(
+                      "members",
+                      members.filter((x) => x !== m),
+                      { shouldValidate: isSubmitted },
+                    )
+                  }
                   disabled={busy}
                   hitSlop={10}
                   accessibilityLabel={`Remove ${m}`}
@@ -138,11 +171,16 @@ export default function CreateGroup() {
           </View>
         </View>
         {errors.members && <Text className="text-neg font-manropeSemi text-[13px] mt-2">{errors.members.message}</Text>}
-        <Text className="text-ink-muted font-manrope text-[13px] mt-3">You can also share an invite link once the group exists.</Text>
+        <Text className="text-ink-muted font-manrope text-[13px] mt-3">Add people now, or share an invite link from the group later.</Text>
       </ScrollView>
 
       <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 8 }}>
-        <PressableScale haptic onPress={() => handleSubmit(onSubmit)()} disabled={busy} className="bg-lime rounded-full h-14 items-center justify-center">
+        <PressableScale
+          haptic
+          onPress={() => handleSubmit(onSubmit)()}
+          disabled={busy}
+          className="bg-lime rounded-full h-14 items-center justify-center"
+        >
           {busy ? <ActivityIndicator color="#0E0E10" /> : <Text className="text-onfill font-manropeBold text-base">Create group</Text>}
         </PressableScale>
       </View>

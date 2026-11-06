@@ -128,7 +128,7 @@ export default function ExpenseDetails() {
                   haptic
                   onPress={() =>
                     router.push({
-                      pathname: "/(app)/expense/SettlementCreate",
+                      pathname: "/(app)/settle",
                       params: { groupId, paidTo: payerId, amountCents: String(settleCents) },
                     })
                   }

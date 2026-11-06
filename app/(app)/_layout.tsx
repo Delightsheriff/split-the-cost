@@ -4,6 +4,16 @@ import { Stack } from "expo-router";
 // A deep link straight to an invite still gets the tabs underneath it.
 export const unstable_settings = { anchor: "(tabs)" };
 
+/** Creation flows open as sheets over the screen they came from, with their own header. */
+const sheet = (detents: number[]) =>
+  ({
+    presentation: "formSheet",
+    headerShown: false,
+    sheetAllowedDetents: detents,
+    sheetGrabberVisible: true,
+    sheetCornerRadius: 32,
+  }) as const;
+
 export default function AppStackLayout() {
   const { colors } = useTheme();
   return (
@@ -18,54 +28,21 @@ export default function AppStackLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="group/create"
-        options={{
-          title: "New group",
-          headerShown: true, // Turn it on for this specific screen
-          // presentation: "card",
-          headerBackTitle: "Back",
-        }}
-      />
+      <Stack.Screen name="group/create" options={sheet([0.75, 1])} />
       <Stack.Screen
         name="group/[id]"
         options={{
           title: "", // The screen sets the group's name once it loads.
           headerShown: true,
-          presentation: "card", // Standard slide-in from right
           headerBackTitle: "Back",
         }}
       />
-      <Stack.Screen
-        name="expense/create"
-        options={{
-          title: "New expense",
-          headerShown: true,
-          presentation: "modal", // Modal presentation
-          headerBackTitle: "Back",
-        }}
-      />
-      <Stack.Screen
-        name="expense/[id]"
-        options={{
-          title: "Expense",
-          headerShown: true,
-          presentation: "card",
-          headerBackTitle: "Back",
-        }}
-      />
-      <Stack.Screen
-        name="expense/SettlementCreate"
-        options={{
-          title: "Settle up",
-          headerShown: true,
-          presentation: "card",
-          headerBackTitle: "Back",
-        }}
-      />
+      <Stack.Screen name="expense/create" options={sheet([1])} />
+      <Stack.Screen name="expense/[id]" options={{ title: "Expense", headerShown: true, headerBackTitle: "Back" }} />
+      <Stack.Screen name="settle" options={sheet([1])} />
       <Stack.Screen name="help" options={{ title: "Help & support", headerShown: true, headerBackTitle: "Back" }} />
       <Stack.Screen name="about" options={{ title: "About", headerShown: true, headerBackTitle: "Back" }} />
-      <Stack.Screen name="join/[code]" options={{ title: "Invite", headerShown: true, presentation: "modal" }} />
+      <Stack.Screen name="join/[code]" options={sheet([0.6])} />
     </Stack>
   );
 }

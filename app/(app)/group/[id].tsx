@@ -84,7 +84,7 @@ export default function GroupDetails() {
   const settleWith = (paidTo: string, amountCents: Cents) => {
     setShowBalances(false);
     router.push({
-      pathname: "/(app)/expense/SettlementCreate",
+      pathname: "/(app)/settle",
       params: { groupId: id, paidTo, amountCents: String(amountCents) },
     });
   };

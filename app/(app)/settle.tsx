@@ -7,6 +7,7 @@ import { useTheme } from "@/src/theme/theme";
 import { Avatar } from "@/src/ui/Avatar";
 import { Keypad } from "@/src/ui/Keypad";
 import { SuccessScreen } from "@/src/ui/SuccessScreen";
+import { SheetHeader } from "@/src/ui/SheetHeader";
 import { SwipeToConfirm } from "@/src/ui/SwipeToConfirm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowRight } from "lucide-react-native";
@@ -15,12 +16,10 @@ import { ActivityIndicator, Alert, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInRight } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function SettlementCreate() {
-  const { groupId, paidTo, amountCents: owedParam } = useLocalSearchParams<{
-    groupId: string;
-    paidTo: string;
-    amountCents: string;
-  }>();
+/** Records a payment either way: you paying someone, or someone paying you (`paidBy` set to them). */
+export default function SettleSheet() {
+  const params = useLocalSearchParams<{ groupId: string; paidBy?: string; paidTo: string; amountCents: string }>();
+  const { groupId, paidTo, amountCents: owedParam } = params;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -42,8 +41,11 @@ export default function SettlementCreate() {
     );
   }
 
+  const payerId = params.paidBy ?? user?._id;
+  const received = payerId !== user?._id;
+  const payer = data?.group.members.find((m) => m._id === payerId);
   const recipient = data?.group.members.find((m) => m._id === paidTo);
-  if (!data || !recipient || !user) {
+  if (!data || !recipient || !payer || !user) {
     return (
       <View className="flex-1 bg-bg items-center justify-center">
         <Text className="text-ink font-manrope text-base">That person isn&apos;t in this group any more</Text>
@@ -55,12 +57,14 @@ export default function SettlementCreate() {
   const amountCents = evaluate(expression);
   const valid = amountCents !== null && amountCents > 0;
   const tooMuch = valid && owedCents !== null && amountCents > owedCents;
-  const firstName = recipient.name.split(" ")[0];
+  // The other person in the payment, whichever side you're on.
+  const firstName = (received ? payer : recipient).name.split(" ")[0];
+  const close = () => router.back();
 
   const pay = async () => {
     if (!valid) return false;
     try {
-      await createSettlement.mutateAsync({ groupId, paidTo, amountCents });
+      await createSettlement.mutateAsync({ groupId, paidBy: payerId, paidTo, amountCents });
       setPaid(amountCents);
       return true;
     } catch (error) {
@@ -71,15 +75,24 @@ export default function SettlementCreate() {
 
   return (
     <View className="flex-1 bg-bg" style={{ paddingBottom: insets.bottom + 8 }}>
-      <View className="flex-row items-center justify-center gap-3 pt-4">
-        <Avatar user={user} size="lg" />
+      <SheetHeader title={received ? "Record a payment" : "Settle up"} onClose={close} />
+      <View className="flex-row items-center justify-center gap-3 pt-2">
+        <Avatar user={payer} size="lg" />
         <ArrowRight size={22} color={colors.inkFaint} />
         <Animated.View entering={FadeInRight.duration(300).delay(150)}>
           <Avatar user={recipient} size="lg" />
         </Animated.View>
       </View>
       <Text className="text-ink-muted font-manropeSemi text-base text-center mt-3">
-        Paying <Text className="text-ink font-manropeBold">{firstName}</Text>
+        {received ? (
+          <>
+            <Text className="text-ink font-manropeBold">{firstName}</Text> paid you
+          </>
+        ) : (
+          <>
+            Paying <Text className="text-ink font-manropeBold">{firstName}</Text>
+          </>
+        )}
       </Text>
 
       <View className="flex-1 items-center justify-center px-6">
@@ -93,13 +106,23 @@ export default function SettlementCreate() {
           {expression === "" ? "0" : expression.replace(/([+−×÷])/g, " $1 ")}
         </Text>
         {hasOperator(expression) && amountCents !== null && (
-          <Animated.Text entering={FadeIn.duration(150)} className="text-ink-muted font-manropeBold text-2xl" style={{ fontVariant: ["tabular-nums"] }}>
+          <Animated.Text
+            entering={FadeIn.duration(150)}
+            className="text-ink-muted font-manropeBold text-2xl"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             = {money(amountCents)}
           </Animated.Text>
         )}
         {owedCents !== null && (
           <Text className={`font-manropeSemi text-[15px] mt-2 ${tooMuch ? "text-neg" : "text-ink-muted"}`}>
-            {tooMuch ? `That's more than the ${money(owedCents)} you owe` : `You owe ${firstName} ${money(owedCents)}`}
+            {received
+              ? tooMuch
+                ? `That's more than the ${money(owedCents)} ${firstName} owes`
+                : `${firstName} owes you ${money(owedCents)}`
+              : tooMuch
+                ? `That's more than the ${money(owedCents)} you owe`
+                : `You owe ${firstName} ${money(owedCents)}`}
           </Text>
         )}
       </View>
@@ -107,7 +130,7 @@ export default function SettlementCreate() {
       <View className="px-4 gap-3">
         <Keypad onKey={(k) => setExpression((e) => press(e, k))} onClear={() => setExpression("")} />
         <SwipeToConfirm
-          label={valid ? `Swipe to pay ${money(amountCents)}` : "Type an amount"}
+          label={valid ? (received ? `Swipe to record ${money(amountCents)}` : `Swipe to pay ${money(amountCents)}`) : "Type an amount"}
           disabled={!valid || tooMuch}
           onConfirm={pay}
         />
@@ -115,11 +138,11 @@ export default function SettlementCreate() {
 
       <SuccessScreen
         visible={paid !== null}
-        title="Paid!"
-        line={paid !== null ? `You paid ${firstName} ${money(paid)}` : ""}
+        title={received ? "Got it!" : "Paid!"}
+        line={paid !== null ? (received ? `${firstName} paid you ${money(paid)}` : `You paid ${firstName} ${money(paid)}`) : ""}
         onDone={() => {
           setPaid(null);
-          router.back();
+          close();
         }}
       />
     </View>
