@@ -8,9 +8,9 @@ import { PressableScale } from "@/src/ui/PressableScale";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { Bell, ChevronRight, HelpCircle, Info, SunMoon, type LucideIcon } from "lucide-react-native";
+import { ChevronRight, HelpCircle, Info, SunMoon, type LucideIcon } from "lucide-react-native";
 import React, { useRef, useState } from "react";
-import { Alert, ScrollView, Switch, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
 const VERSION_TAPS = 5;
@@ -45,13 +45,11 @@ function SettingRow({
 export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { colors } = useTheme();
   const deleteAccount = useDeleteAccount();
   const { data: loaded } = useGroups();
   const groups = loaded ?? [];
   const reduceMotion = useReducedMotion();
 
-  const [notifications, setNotifications] = useState(true);
   const [secret, setSecret] = useState(false);
   const taps = useRef(0);
 
@@ -135,19 +133,11 @@ export default function Profile() {
       </View>
 
       <View className="bg-surface rounded-3xl mt-6 overflow-hidden">
-        <SettingRow
-          icon={Bell}
-          title="Notifications"
-          right={
-            <Switch value={notifications} onValueChange={setNotifications} trackColor={{ false: colors.surfaceMuted, true: "#13EC5B" }} />
-          }
-        />
-        <View className="h-px bg-line ml-12" />
         <SettingRow icon={SunMoon} title="Appearance" value="Matches your phone" />
         <View className="h-px bg-line ml-12" />
-        <SettingRow icon={HelpCircle} title="Help & support" onPress={() => {}} />
+        <SettingRow icon={HelpCircle} title="Help & support" onPress={() => router.push("/(app)/help")} />
         <View className="h-px bg-line ml-12" />
-        <SettingRow icon={Info} title="About" onPress={() => {}} />
+        <SettingRow icon={Info} title="About" onPress={() => router.push("/(app)/about")} />
       </View>
 
       <PressableScale haptic onPress={logOut} className="bg-surface rounded-full py-4 items-center mt-6">

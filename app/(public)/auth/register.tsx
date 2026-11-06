@@ -109,6 +109,12 @@ export default function Register() {
               Already in? <Text className="text-ink font-manropeBold">Log in</Text>
             </Text>
           </PressableScale>
+
+          <PressableScale static onPress={() => router.push("/privacy")} className="items-center py-2">
+            <Text className="text-ink-faint font-manrope text-xs">
+              How we look after your data: <Text className="font-manropeBold">privacy policy</Text>
+            </Text>
+          </PressableScale>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

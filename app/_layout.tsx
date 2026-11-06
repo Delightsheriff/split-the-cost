@@ -1,5 +1,5 @@
 import { AuthProvider, useAuth } from "@/src/contexts/AuthContext";
-import { ThemeRoot } from "@/src/theme/theme";
+import { ThemeRoot, useTheme } from "@/src/theme/theme";
 import { RiveScenesProvider } from "@/src/ui/RiveScenes";
 import {
   Manrope_400Regular,
@@ -61,6 +61,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { token, isLoading } = useAuth();
+  const { colors } = useTheme();
 
   // Wait for auth to initialize
   if (isLoading) return null;
@@ -74,6 +75,19 @@ function RootNavigator() {
       <Stack.Protected guard={!!token}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
+
+      <Stack.Screen
+        name="privacy"
+        options={{
+          title: "Privacy policy",
+          headerShown: true,
+          headerBackTitle: "Back",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.ink,
+          headerTitleStyle: { fontFamily: "Manrope-Bold" },
+          headerShadowVisible: false,
+        }}
+      />
     </Stack>
   );
 }

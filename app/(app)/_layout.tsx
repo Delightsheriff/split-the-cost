@@ -63,6 +63,8 @@ export default function AppStackLayout() {
           headerBackTitle: "Back",
         }}
       />
+      <Stack.Screen name="help" options={{ title: "Help & support", headerShown: true, headerBackTitle: "Back" }} />
+      <Stack.Screen name="about" options={{ title: "About", headerShown: true, headerBackTitle: "Back" }} />
       <Stack.Screen name="join/[code]" options={{ title: "Invite", headerShown: true, presentation: "modal" }} />
     </Stack>
   );
