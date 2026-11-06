@@ -47,7 +47,8 @@ export default function Profile() {
   const { user, signOut } = useAuth();
   const { colors } = useTheme();
   const deleteAccount = useDeleteAccount();
-  const { data: groups = [] } = useGroups();
+  const { data: loaded } = useGroups();
+  const groups = loaded ?? [];
   const reduceMotion = useReducedMotion();
 
   const [notifications, setNotifications] = useState(true);
@@ -117,18 +118,19 @@ export default function Profile() {
       <View className="flex-row gap-3 mt-8">
         <View className="flex-1 bg-surface rounded-3xl p-4">
           <Text className="text-ink font-manropeHeavy text-3xl" style={{ fontVariant: ["tabular-nums"] }}>
-            {groups.length}
+            {loaded ? groups.length : "–"}
           </Text>
           <Text className="text-ink-muted font-manropeSemi text-[13px] mt-1">{groups.length === 1 ? "group" : "groups"}</Text>
         </View>
         <View className="flex-1 bg-surface rounded-3xl p-4">
           <Text className="text-ink font-manropeHeavy text-3xl" style={{ fontVariant: ["tabular-nums"] }}>
-            {people}
+            {loaded ? people : "–"}
           </Text>
           <Text className="text-ink-muted font-manropeSemi text-[13px] mt-1">{people === 1 ? "person" : "people"}</Text>
         </View>
         <View className="flex-1 bg-surface rounded-3xl items-center justify-center">
-          <Moodling balanceCents={balance} size={64} />
+          {/* Held back until balances arrive, so it never flashes the settled mood first. */}
+          {loaded ? <Moodling balanceCents={balance} size={64} /> : <View style={{ width: 64, height: 64 }} />}
         </View>
       </View>
 
