@@ -29,6 +29,8 @@ describe("formatMoney and centsToInput", () => {
     expect(formatMoney(123456)).toBe("$1,234.56");
     expect(formatMoney(-500)).toBe("-$5.00");
     expect(formatMoney(1050, "EUR")).toBe("€10.50");
+    expect(formatMoney(-120000, "NGN")).toBe("-₦1,200.00");
+    expect(formatMoney(100, "JPY")).toBe("¥1");
   });
 
   it("round-trips through an input string", () => {

@@ -264,8 +264,15 @@ export default function GroupDetails() {
           <View className="items-center px-10 pt-14">
             <Text className="text-ink font-manropeBold text-lg">Nothing here yet</Text>
             <Text className="text-ink-muted font-manrope text-center mt-1">
-              Add the first expense and it&apos;s split between everyone straight away.
+              {group.members.length > 1
+                ? "Add the first expense and it's split between everyone straight away."
+                : "It's just you so far. Invite the others, then add the first expense."}
             </Text>
+            {group.members.length === 1 && (
+              <PressableScale haptic onPress={shareInvite} className="bg-surface rounded-full px-5 py-3 mt-5">
+                <Text className="text-ink font-manropeBold">Share invite link</Text>
+              </PressableScale>
+            )}
           </View>
         ) : (
           timeline.map((day) => (

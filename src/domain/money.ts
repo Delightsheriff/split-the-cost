@@ -13,8 +13,15 @@ export function parseCents(input: string): Cents | null {
   return Number.isSafeInteger(cents) ? cents : null;
 }
 
+// Local symbols for the currencies a group can pick. Hermes ignores Intl's narrowSymbol,
+// so without these it prints "NGN 1,200.00" instead of "₦1,200.00".
+const SYMBOLS: Record<string, string> = { USD: "$", NGN: "₦", EUR: "€", GBP: "£", GHS: "GH₵", KES: "KSh", ZAR: "R", CAD: "CA$" };
+const decimal = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function formatMoney(cents: Cents, currency = DEFAULT_CURRENCY): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  const symbol = SYMBOLS[currency];
+  if (!symbol) return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  return `${cents < 0 ? "-" : ""}${symbol}${decimal.format(Math.abs(cents) / 100)}`;
 }
 
 /** Cents as a plain decimal string for an input field, e.g. 1250 -> "12.50". */
@@ -32,9 +39,7 @@ export function allocate(total: Cents, weights: number[]): Cents[] {
   const exact = weights.map((w) => (total * w) / sum);
   const parts = exact.map(Math.floor);
   let left = total - parts.reduce((a, b) => a + b, 0);
-  const order = exact
-    .map((x, i) => ({ i, rem: x - Math.floor(x) }))
-    .sort((a, b) => b.rem - a.rem || a.i - b.i);
+  const order = exact.map((x, i) => ({ i, rem: x - Math.floor(x) })).sort((a, b) => b.rem - a.rem || a.i - b.i);
   for (const { i } of order) {
     if (left === 0) break;
     parts[i] += 1;
