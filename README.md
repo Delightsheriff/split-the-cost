@@ -2,6 +2,17 @@
 
 An iOS and Android app for sharing costs with friends: trips, flats, dinners. Add what you spent, and it works out who owes whom with as few payments as possible.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="240" alt="Home: your overall balance with a happy Moodling, and your groups" />
+  <img src="docs/screenshots/group.png" width="240" alt="A group: what you're owed, who's in it, spending by category and recent expenses" />
+  <img src="docs/screenshots/balances.png" width="240" alt="Who pays who: the simplified payments that settle the group" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/add-expense.png" width="240" alt="Adding an expense: amount keypad, description and category" />
+  <img src="docs/screenshots/split.png" width="240" alt="Splitting an expense four ways, with date, payer and split type" />
+  <img src="docs/screenshots/activity.png" width="240" alt="Activity across all your groups" />
+</p>
+
 ## What it does
 
 - **Groups** with their own currency (USD, NGN, EUR, GBP, GHS, KES, ZAR, CAD). Invite people by link or by email.
@@ -81,6 +92,7 @@ src/
   content/              Copy for the privacy and help pages
   theme/                Colour tokens and theme provider
 rive/splitit/           Source for the Rive scenes and the app icons
+docs/screenshots/       The screenshots in this README
 ```
 
 Amounts are integer cents everywhere. All the splitting maths lives in `src/domain`, so it's tested without the app.
