@@ -3,7 +3,7 @@ import { netBalances, simplifyDebts, type Ledger } from "./balances";
 import { computeShares } from "./splits";
 
 const expense = (paidBy: string, cents: number, members: string[]) => ({
-  paidBy,
+  payers: [{ userId: paidBy, cents }],
   shares: computeShares(cents, { type: "equal", members }),
 });
 
@@ -63,5 +63,26 @@ describe("simplifyDebts", () => {
   it("only produces positive payments and nothing when everyone is settled", () => {
     expect(simplifyDebts(new Map([["a", 0]]))).toEqual([]);
     for (const p of simplifyDebts(netBalances(trip))) expect(p.cents).toBeGreaterThan(0);
+  });
+});
+
+describe("several payers", () => {
+  it("credits each payer with what they put in", () => {
+    // Ada and Tari split a 90.00 bill 60/30, shared equally by three.
+    const net = netBalances({
+      expenses: [
+        {
+          payers: [
+            { userId: "ada", cents: 6000 },
+            { userId: "tari", cents: 3000 },
+          ],
+          shares: computeShares(9000, { type: "equal", members: ["ada", "tari", "you"] }),
+        },
+      ],
+      settlements: [],
+    });
+    expect(net.get("ada")).toBe(3000);
+    expect(net.get("tari")).toBe(0);
+    expect(net.get("you")).toBe(-3000);
   });
 });

@@ -46,7 +46,9 @@ export default function ExpenseDetails() {
 
   const money = (cents: number) => formatMoney(cents, data.group.currency);
   const payerId = expense.paidBy._id;
-  const youPaid = payerId === user?._id;
+  const paidBy = new Map(expense.payers.map((p) => [p.user._id, p.cents]));
+  const first = (name: string) => name.split(" ")[0];
+  const payerNames = expense.payers.map((p) => (p.user._id === user?._id ? "you" : first(p.user.name))).join(" & ");
   // Debts are simplified across the group, so only offer to settle if the plan has you paying this payer.
   const payToPayer = data.suggestedPayments.find((p) => p.from._id === user?._id && p.to._id === payerId);
   const date = new Date(expense.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -86,18 +88,23 @@ export default function ExpenseDetails() {
         </DonutRing>
       </View>
 
-      <View className="flex-row items-center gap-3 bg-surface rounded-3xl p-4 mt-6">
-        <Avatar user={expense.paidBy} size="md" />
-        <View className="flex-1">
-          <Text className="text-ink-muted font-manropeSemi text-[13px]">Paid by</Text>
-          <Text className="text-ink font-manropeBold text-base">{youPaid ? "You" : expense.paidBy.name}</Text>
-        </View>
-        <Money cents={expense.amountCents} currency={data.group.currency} className="text-base" />
+      <View className="bg-surface rounded-3xl px-4 mt-6">
+        {expense.payers.map(({ user: payer, cents }, i) => (
+          <View key={payer._id} className={`flex-row items-center gap-3 py-3.5 ${i > 0 ? "border-t border-line" : ""}`}>
+            <Avatar user={payer} size="md" />
+            <View className="flex-1">
+              {i === 0 && <Text className="text-ink-muted font-manropeSemi text-[13px]">Paid by</Text>}
+              <Text className="text-ink font-manropeBold text-base">{payer._id === user?._id ? "You" : payer.name}</Text>
+            </View>
+            <Money cents={cents} currency={data.group.currency} className="text-base" />
+          </View>
+        ))}
       </View>
 
       <View className="bg-surface rounded-3xl mt-3 px-4">
         {expense.shares.map(({ user: member, cents }, i) => {
-          const isPayer = member._id === payerId;
+          const paid = paidBy.get(member._id) ?? 0;
+          const isPayer = paid > 0;
           const isYou = member._id === user?._id;
           const settleCents = isYou && !isPayer ? (payToPayer?.cents ?? 0) : 0;
           return (
@@ -106,7 +113,13 @@ export default function ExpenseDetails() {
               <View className="flex-1">
                 <Text className="text-ink font-manropeBold text-[15px]">{isYou ? "You" : member.name}</Text>
                 <Text className="text-ink-muted font-manrope text-[13px]">
-                  {isPayer ? `Paid, lent ${money(expense.amountCents - cents)}` : `Owes ${youPaid ? "you" : expense.paidBy.name.split(" ")[0]}`}
+                  {isPayer
+                    ? paid > cents
+                      ? `Paid ${money(paid)}, lent ${money(paid - cents)}`
+                      : paid < cents
+                        ? `Paid ${money(paid)}, owes ${money(cents - paid)}`
+                        : "Paid their share"
+                    : `Owes ${payerNames}`}
                 </Text>
               </View>
               <Money cents={cents} currency={data.group.currency} tone="muted" className="text-[15px]" />

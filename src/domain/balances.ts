@@ -1,7 +1,7 @@
 import type { Cents } from "./money";
 import type { Share } from "./splits";
 
-export type LedgerExpense = { paidBy: string; shares: Share[] };
+export type LedgerExpense = { payers: Share[]; shares: Share[] };
 export type LedgerSettlement = { paidBy: string; paidTo: string; cents: Cents };
 export type Ledger = { expenses: LedgerExpense[]; settlements: LedgerSettlement[] };
 
@@ -13,10 +13,8 @@ const add = (map: Map<string, Cents>, id: string, cents: Cents) => map.set(id, (
 export function netBalances(ledger: Ledger): Map<string, Cents> {
   const net = new Map<string, Cents>();
   for (const e of ledger.expenses) {
-    for (const s of e.shares) {
-      add(net, e.paidBy, s.cents);
-      add(net, s.userId, -s.cents);
-    }
+    for (const p of e.payers) add(net, p.userId, p.cents);
+    for (const s of e.shares) add(net, s.userId, -s.cents);
   }
   for (const s of ledger.settlements) {
     add(net, s.paidBy, s.cents);

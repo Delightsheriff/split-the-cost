@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeShares, SplitError } from "./splits";
+import { checkPayers, computeShares, mainPayer, SplitError } from "./splits";
 
 const sum = (shares: { cents: number }[]) => shares.reduce((a, s) => a + s.cents, 0);
 
@@ -51,5 +51,31 @@ describe("computeShares", () => {
     expect(() => computeShares(10.5, { type: "equal", members: ["a"] })).toThrow(SplitError);
     expect(() => computeShares(100, { type: "equal", members: [] })).toThrow(SplitError);
     expect(() => computeShares(100, { type: "shares", members: ["a"], values: { a: 0 } })).toThrow(SplitError);
+  });
+});
+
+describe("checkPayers", () => {
+  it("merges repeats and drops zero amounts", () => {
+    expect(
+      checkPayers(5000, [
+        { userId: "ada", cents: 2000 },
+        { userId: "tari", cents: 0 },
+        { userId: "ada", cents: 3000 },
+      ]),
+    ).toEqual([{ userId: "ada", cents: 5000 }]);
+  });
+
+  it("needs the payments to cover the total exactly", () => {
+    expect(() => checkPayers(5000, [{ userId: "ada", cents: 4000 }])).toThrow("Payments add up to 4000 cents, not 5000");
+    expect(() => checkPayers(5000, [])).toThrow(SplitError);
+  });
+
+  it("names the biggest payer", () => {
+    expect(
+      mainPayer([
+        { userId: "ada", cents: 2000 },
+        { userId: "tari", cents: 3000 },
+      ]),
+    ).toBe("tari");
   });
 });

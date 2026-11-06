@@ -153,12 +153,13 @@ export default function GroupDetails() {
       },
     ]);
 
-  /** What this expense did to your balance: lent when you paid, borrowed when someone else did. */
+  /** What this expense did to your balance: what you paid minus your share. */
   const yourPart = (e: Expense) => {
     const share = e.shares.find((s) => s.user._id === me)?.cents ?? 0;
-    if (e.paidBy._id === me) return { label: "you lent", cents: e.amountCents - share };
-    if (share > 0) return { label: "you borrowed", cents: -share };
-    return null;
+    const paid = e.payers.find((p) => p.user._id === me)?.cents ?? 0;
+    if (!share && !paid) return null;
+    const net = paid - share;
+    return { label: net > 0 ? "you lent" : net < 0 ? "you borrowed" : "you're even", cents: net };
   };
 
   const renderItem = (item: TimelineItem) => {
@@ -198,7 +199,8 @@ export default function GroupDetails() {
             {e.description}
           </Text>
           <Text className="text-ink-muted font-manrope text-[13px]" numberOfLines={1}>
-            {name(e.paidBy)} paid {money(e.amountCents)}
+            {name(e.paidBy)}
+            {e.payers.length > 1 ? ` + ${e.payers.length - 1}` : ""} paid {money(e.amountCents)}
           </Text>
         </View>
         <View className="items-end">

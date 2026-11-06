@@ -19,6 +19,26 @@ export class SplitError extends Error {}
 
 const FULL_PERCENT = 10_000;
 
+/**
+ * Who paid for an expense. Usually one person; when several chipped in, each amount is
+ * whole cents and together they cover the total exactly.
+ */
+export function checkPayers(total: Cents, payers: Share[]): Share[] {
+  const merged = new Map<string, Cents>();
+  for (const p of payers) {
+    if (!Number.isSafeInteger(p.cents) || p.cents < 0) throw new SplitError("Payments can't be negative");
+    merged.set(p.userId, (merged.get(p.userId) ?? 0) + p.cents);
+  }
+  const list = [...merged].filter(([, c]) => c > 0).map(([userId, cents]) => ({ userId, cents }));
+  if (list.length === 0) throw new SplitError("Say who paid");
+  const sum = list.reduce((a, p) => a + p.cents, 0);
+  if (sum !== total) throw new SplitError(`Payments add up to ${sum} cents, not ${total}`);
+  return list;
+}
+
+/** The person who paid the most, for one-line summaries like "Ada paid". */
+export const mainPayer = (payers: Share[]) => payers.reduce((a, b) => (b.cents > a.cents ? b : a)).userId;
+
 export function computeShares(total: Cents, split: Split): Share[] {
   if (!Number.isSafeInteger(total) || total <= 0) throw new SplitError("Amount must be more than zero");
   const members = [...new Set(split.members)];

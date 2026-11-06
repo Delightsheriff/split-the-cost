@@ -32,7 +32,10 @@ export type Expense = {
   description: string;
   amountCents: Cents;
   type: ExpenseType;
+  /** Whoever paid the most. */
   paidBy: GroupMember;
+  /** Everyone who paid and how much; one entry when a single person paid. */
+  payers: { user: GroupMember; cents: Cents }[];
   split: Split;
   shares: { user: GroupMember; cents: Cents }[];
   date: string;
@@ -47,7 +50,10 @@ export type ExpenseInput = {
   description: string;
   amountCents: Cents;
   type: ExpenseType;
-  paidBy: string;
+  /** One payer… */
+  paidBy?: string;
+  /** …or several, whose cents add up to amountCents. */
+  payers?: { userId: string; cents: Cents }[];
   split: Split;
   date?: string;
 };

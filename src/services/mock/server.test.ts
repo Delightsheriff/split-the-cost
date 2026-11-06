@@ -52,6 +52,37 @@ describe("expenses", () => {
     expect(expense.paidBy._id).toBe("u_you");
   });
 
+  it("takes several payers and credits each one", async () => {
+    const before = (await you().get("/api/groups/g_trip/details")).myBalanceCents;
+    const expense = await you().post("/api/expenses", {
+      ...body,
+      payers: [
+        { userId: "u_you", cents: 1000 },
+        { userId: "u_tari", cents: 3000 },
+      ],
+    });
+    expect(expense.paidBy._id).toBe("u_tari");
+    expect(expense.payers.map((p: { cents: number }) => p.cents)).toEqual([1000, 3000]);
+    // You paid 10.00 and your share is 10.00, so your balance doesn't move.
+    expect((await you().get("/api/groups/g_trip/details")).myBalanceCents).toBe(before);
+  });
+
+  it("rejects payers that don't cover the total", async () => {
+    await expect(you().post("/api/expenses", { ...body, payers: [{ userId: "u_you", cents: 100 }] })).rejects.toThrow(
+      "Payments add up to 100 cents, not 4000",
+    );
+  });
+
+  it("keeps several payers when only the description changes, and drops them for a new single payer", async () => {
+    const payers = [
+      { userId: "u_you", cents: 1000 },
+      { userId: "u_tari", cents: 3000 },
+    ];
+    const { _id } = await you().post("/api/expenses", { ...body, payers });
+    expect((await you().patch(`/api/expenses/${_id}`, { description: "Boat" })).payers).toHaveLength(2);
+    expect((await you().patch(`/api/expenses/${_id}`, { paidBy: "u_ada" })).payers).toHaveLength(1);
+  });
+
   it("rejects a split that doesn't add up or includes outsiders", async () => {
     await expect(you().post("/api/expenses", { ...body, split: { ...body.split, values: { u_you: 1 } } })).rejects.toThrow(
       "Percentages must add up to 100",

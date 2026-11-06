@@ -1,6 +1,6 @@
 import { netBalances, simplifyDebts, type Ledger } from "@/src/domain/balances";
 import { DEFAULT_CURRENCY } from "@/src/domain/money";
-import { computeShares, SplitError, type Split } from "@/src/domain/splits";
+import { checkPayers, computeShares, mainPayer, SplitError, type Share, type Split } from "@/src/domain/splits";
 import {
   DEMO_USER_ID,
   getDb,
@@ -71,6 +71,7 @@ function populateExpense(db: MockDb, e: MockExpense) {
   return {
     ...e,
     paidBy: publicUser(db, e.paidBy),
+    payers: e.payers.map((p) => ({ user: publicUser(db, p.userId), cents: p.cents })),
     shares: e.shares.map((s) => ({ user: publicUser(db, s.userId), cents: s.cents })),
   };
 }
@@ -87,12 +88,16 @@ function readExpense(group: MockGroup, body: Body, me: string) {
   const amountCents = Number(body.amountCents);
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0) fail(400, "Amount must be more than zero");
   const type = EXPENSE_TYPES.includes(body.type) ? body.type : "other";
-  const paidBy = String(body.paidBy || me);
-  if (!group.members.includes(paidBy)) fail(400, "The payer isn't in this group");
+  // One payer by `paidBy`, or several by `payers`.
+  const payersIn: Share[] = Array.isArray(body.payers)
+    ? body.payers.map((p: Body) => ({ userId: String(p.userId), cents: Number(p.cents) }))
+    : [{ userId: String(body.paidBy || me), cents: amountCents }];
+  if (!payersIn.every((p) => group.members.includes(p.userId))) fail(400, "The payer isn't in this group");
   const split = body.split as Split;
   if (!split?.members?.every((id) => group.members.includes(id))) fail(400, "Cannot split with users not in the group");
   try {
-    return { description, amountCents, type, paidBy, split, shares: computeShares(amountCents, split) };
+    const payers = checkPayers(amountCents, payersIn);
+    return { description, amountCents, type, paidBy: mainPayer(payers), payers, split, shares: computeShares(amountCents, split) };
   } catch (e) {
     return fail(400, e instanceof SplitError ? e.message : "Invalid split");
   }
@@ -291,9 +296,12 @@ async function handle(db: MockDb, method: string, path: string, query: Map<strin
       amountCents: expense.amountCents,
       type: expense.type,
       paidBy: expense.paidBy,
+      // Several payers carry over untouched; a single payer follows a new amount.
+      payers: expense.payers.length > 1 ? expense.payers : undefined,
       split: expense.split,
       ...body,
     };
+    if (body.paidBy !== undefined && body.payers === undefined) merged.payers = undefined;
     Object.assign(expense, readExpense(group, merged, me._id), {
       date: body.date ? new Date(body.date).toISOString() : expense.date,
       updatedAt: now(),

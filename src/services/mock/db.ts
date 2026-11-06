@@ -26,7 +26,9 @@ export type MockExpense = {
   description: string;
   amountCents: Cents;
   type: ExpenseType;
+  /** The biggest payer, kept for one-line summaries; `payers` is what the maths uses. */
   paidBy: string;
+  payers: Share[];
   split: Split;
   shares: Share[];
   date: string;
@@ -54,7 +56,7 @@ export type MockDb = {
 };
 
 // Bumped when the stored shape changes, so old data is replaced by a fresh seed.
-const STORAGE_KEY = "mock_db_v2";
+const STORAGE_KEY = "mock_db_v3";
 
 /** The account every sign-in falls back to, so any email and password works. */
 export const DEMO_USER_ID = "u_you";
@@ -111,6 +113,7 @@ export function seed(): MockDb {
     amountCents,
     type,
     paidBy,
+    payers: [{ userId: paidBy, cents: amountCents }],
     split,
     shares: computeShares(amountCents, split),
     date: daysAgo(days),
