@@ -5,7 +5,7 @@ import { useAddMembers, useDeleteGroup, useGroupDetails, useLeaveGroup, useUpdat
 import { useDeleteSettlement } from "@/src/services/settlement.service";
 import { useTheme } from "@/src/theme/theme";
 import type { Expense, GroupMember, Payment, Settlement } from "@/src/types";
-import { Avatar } from "@/src/ui/Avatar";
+import { Avatar, AvatarStack } from "@/src/ui/Avatar";
 import { CategoryBadge } from "@/src/ui/CategoryBadge";
 import { Money } from "@/src/ui/Money";
 import { Moodling, moodFor } from "@/src/ui/Moodling";
@@ -13,7 +13,7 @@ import { PressableScale } from "@/src/ui/PressableScale";
 import { SpendBar } from "@/src/ui/SpendBar";
 import * as Linking from "expo-linking";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowRight, Ellipsis, HandCoins, Plus } from "lucide-react-native";
+import { ArrowRight, Ellipsis, HandCoins, Plus, UserPlus } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import { ActionSheetIOS, ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -248,6 +248,21 @@ export default function GroupDetails() {
             <Text className={`font-manropeBold text-base ${myBalanceCents < 0 ? "text-bg" : "text-ink"}`}>
               {myBalanceCents < 0 ? "Settle up" : "Balances"}
             </Text>
+          </PressableScale>
+
+          {/* Who's in, with a shortcut to add more. */}
+          <PressableScale
+            static
+            onPress={addPeople}
+            accessibilityLabel={`${group.members.length} people. Add people`}
+            className="flex-row items-center gap-3 mt-4"
+          >
+            <AvatarStack users={group.members} size="sm" max={5} />
+            <Text className="flex-1 text-ink-muted font-manropeSemi text-[13px]" numberOfLines={1}>
+              {group.members.map(name).join(", ")}
+              {group.invitedEmails.length > 0 && ` · ${group.invitedEmails.length} invited`}
+            </Text>
+            <UserPlus size={18} color={colors.inkMuted} />
           </PressableScale>
 
           {expenses.length > 0 && (
