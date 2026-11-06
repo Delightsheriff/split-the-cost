@@ -1,265 +1,117 @@
-# Split The Cost App 💰
+# Split the Cost
 
-A modern React Native expense splitting application built with Expo, designed to help friends, roommates, and groups easily track and split shared expenses. Perfect for trips, meals, household bills, and group activities.
+An iOS and Android app for sharing costs with friends: trips, flats, dinners. Add what you spent, and it works out who owes whom with as few payments as possible.
 
-## ✨ Features
+## What it does
 
-### 🏠 Core Functionality
+- **Groups** with their own currency (USD, NGN, EUR, GBP, GHS, KES, ZAR, CAD). Invite people by link or by email.
+- **Expenses** split four ways: equally, by exact amounts, by percentage or by shares. One person can pay, or several can each pay part of it.
+- **Balances** that net everything out and suggest the fewest payments that settle the group.
+- **Payments** in both directions: record what you paid someone, or mark a payment you received. Long-press a payment to undo it.
+- **Sheets for creating things.** Adding a group, an expense or a payment opens over the screen you came from.
+- **Moodlings**, small Rive characters that show at a glance whether you're owed, settled or owing. A few things are hidden in the app for people who tap around.
+- **Account controls:** edit your profile, delete your account, and read the privacy policy in the app.
 
-- **Group Management**: Create and manage expense groups for different purposes
-- **Smart Expense Tracking**: Add expenses with detailed breakdown of who paid and who owes what
-- **Real-time Balance Calculation**: Automatic calculation of who owes whom
-- **Settlement System**: Track payments between group members
-- **Activity Feed**: View all group activities and transaction history
+## Stack
 
-### 👥 User Experience
+- Expo SDK 58, React Native 0.88, React 19 with the React Compiler
+- expo-router with native form sheets
+- Reanimated 4 and Gesture Handler
+- NativeWind for styling, Manrope for type
+- React Query for server state, React Hook Form and Zod for forms
+- Rive for the Moodlings and the success burst
+- Vitest for the domain and mock API tests
 
-- **Secure Authentication**: User registration and login with JWT authentication
-- **Interactive Onboarding**: Guided introduction to app features
-- **Intuitive UI**: Clean, modern interface with dark theme
-- **Avatar Support**: User profile pictures and member avatars
-- **Responsive Design**: Works seamlessly on both iOS and Android
+## Getting started
 
-### 📊 Expense Categories
-
-- Food & Dining
-- Transportation
-- Supplies
-- Fuel
-- Other custom categories
-
-## 🛠 Tech Stack
-
-### Frontend
-
-- **React Native** (0.81.5) with Expo SDK 54
-- **Expo Router** for file-based navigation
-- **TypeScript** for type safety
-- **NativeWind** (Tailwind CSS for React Native) for styling
-- **Lucide React Native** for icons
-
-### State Management & Data
-
-- **TanStack Query** for server state management
-- **React Hook Form** with Zod validation
-- **Async Storage** for local data persistence
-- **Expo Secure Store** for sensitive data
-
-### UI/UX
-
-- **Custom fonts** (Manrope)
-- **React Native Reanimated** for smooth animations
-- **Expo Linear Gradient** for visual effects
-- **React Native Safe Area Context** for proper screen layouts
-
-## 📁 Project Structure
-
-```
-split-the-cost-app/
-├── app/                          # Expo Router file-based routing
-│   ├── (app)/                   # Authenticated app screens
-│   │   ├── (tabs)/             # Bottom tab navigation
-│   │   │   ├── index.tsx       # Groups overview
-│   │   │   ├── activity/       # Activity feed
-│   │   │   └── profile/        # User profile
-│   │   ├── expense/            # Expense management
-│   │   └── group/              # Group management
-│   ├── (public)/               # Public screens (no auth required)
-│   │   ├── index.tsx          # Landing page
-│   │   ├── auth/              # Login/Register
-│   │   └── onboarding/        # App introduction
-│   └── _layout.tsx            # Root layout with providers
-├── src/
-│   ├── components/ui/          # Reusable UI components
-│   ├── contexts/              # React contexts (Auth)
-│   ├── services/              # API services and hooks
-│   ├── types/                 # TypeScript type definitions
-│   └── utils/                 # Utility functions
-├── assets/                    # Images, icons, and static files
-└── scripts/                   # Build and utility scripts
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- Expo CLI (`npm install -g expo-cli`)
-- iOS Simulator (for iOS development)
-- Android Studio (for Android development)
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd split-the-cost-app
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Environment Setup**
-   Create a `.env` file in the root directory:
-
-   ```env
-   EXPO_PUBLIC_API_URL=http://localhost:3000
-   ```
-
-4. **Start the development server**
-   ```bash
-   npx expo start
-   ```
-
-### Development Options
-
-- **iOS Simulator**: Press `i` in the terminal or scan QR code with Expo Go
-- **Android Emulator**: Press `a` in the terminal or scan QR code with Expo Go
-- **Web Browser**: Press `w` in the terminal
-- **Physical Device**: Install Expo Go and scan the QR code
-
-## 📱 App Navigation
-
-### Authentication Flow
-
-- **Onboarding**: Interactive introduction to app features
-- **Registration/Login**: Secure user authentication
-- **Auto-login**: Persistent sessions with secure token storage
-
-### Main App Features
-
-- **Groups Tab**: View and manage your expense groups
-- **Activity Tab**: Track all transactions and settlements
-- **Profile Tab**: Manage your account and preferences
-
-### Key Screens
-
-- **Group Details**: View expenses, balances, and member information
-- **Add Expense**: Create new shared expenses with split configuration
-- **Settlement**: Record payments between group members
-
-## 🔧 Available Scripts
+The app uses a native Rive module, so it runs in a development build, not Expo Go.
 
 ```bash
-# Development
-npm start              # Start Expo development server
-npm run android       # Start on Android emulator
-npm run ios          # Start on iOS simulator
-npm run web          # Start in web browser
-
-# Utilities
-npm run lint         # Run ESLint
-npm run reset-project # Reset to clean project state
+npm install
+npx expo run:ios      # or: npx expo run:android
 ```
 
-## 🏗 Architecture
+After the first build, `npm start` is enough to reload JavaScript changes.
 
-### Authentication
+### Mock API
 
-- JWT-based authentication with secure token storage
-- Auto-logout on token expiration
-- Protected routes with authentication guards
+By default every request goes to a mock of the API inside the app (`src/services/mock`), which keeps its data in AsyncStorage. Sign-in is simulated, so any password works.
 
-### Data Management
+Demo accounts:
 
-- **API Client**: Centralized HTTP client with automatic auth headers
-- **React Query**: Caching, background updates, and optimistic updates
-- **Form Management**: React Hook Form with Zod schema validation
+- `you@example.com`
+- `tari@example.com`
 
-### Styling
+To use the real backend instead, set these before starting:
 
-- **NativeWind**: Tailwind CSS classes for React Native
-- **Custom Theme**: Consistent color palette and typography
-- **Responsive Design**: Adaptive layouts for different screen sizes
+```bash
+EXPO_PUBLIC_USE_MOCK_API=0
+EXPO_PUBLIC_API_URL=https://split-the-cost-api.onrender.com
+```
 
-## 🔒 Security Features
+### Deep links
 
-- **Secure Token Storage**: Expo Secure Store for authentication tokens
-- **API Error Handling**: Comprehensive error boundaries and user feedback
-- **Input Validation**: Client-side validation with Zod schemas
-- **Type Safety**: Full TypeScript coverage for runtime safety
+- `splitthecostapp://group/<id>` opens a group
+- `splitthecostapp://join/<code>` opens an invite
 
-## 🎨 Design System
+## Scripts
 
-### Colors
+```bash
+npm test             # vitest
+npm run typecheck    # tsc --noEmit
+npm run lint         # expo lint
+```
 
-- **Primary**: `#13ec5b` (Bright green)
-- **Background**: `#102216` (Dark green)
-- **Surface**: `#1c2e22` (Card background)
-- **Text**: White with various opacities
+## Project structure
 
-### Typography
+```
+app/                    Screens (expo-router)
+  (public)/             Onboarding, sign in, register
+  (app)/(tabs)/         Groups, activity, profile
+  (app)/group/          Group detail and the create sheet
+  (app)/expense/        Expense detail and the add/edit sheet
+  (app)/settle.tsx      Record a payment
+  (app)/join/[code].tsx Accept an invite
+  privacy.tsx           Privacy policy, reachable signed in or out
+src/
+  domain/               Money, splits, balances and debt simplification (pure, tested)
+  services/             API client and per-resource services
+  services/mock/        The mock API and its database
+  ui/                   Shared components (Moodling, Keypad, SheetHeader, ...)
+  content/              Copy for the privacy and help pages
+  theme/                Colour tokens and theme provider
+rive/splitit/           Source for the Rive scenes and the app icons
+```
 
-- **Font Family**: Manrope (Regular, Bold)
-- **Responsive Text**: Automatic font scaling
-- **Consistent Spacing**: Tailwind spacing system
+Amounts are integer cents everywhere. All the splitting maths lives in `src/domain`, so it's tested without the app.
 
-## 🔄 State Management
+### Rive and icons
 
-### Server State (React Query)
+The Moodlings and confetti are generated rather than drawn by hand:
 
-- Groups and group details
-- Expenses and transactions
-- User activities and settlements
-- Automatic caching and background sync
+```bash
+cd rive/splitit
+python3 generate.py   # writes scene.rml
+rive . --verify       # checks it compiles with the Rive CLI
+python3 art.py        # draws the splash screen and app icons
+```
 
-### Client State
+The app loads the compiled scenes from `assets/rive/splitit.riv`, so rebuild that file from `scene.rml` with the Rive CLI after changing the scenes.
 
-- Authentication status and user data
-- Form states and validation
-- UI state (loading, errors, etc.)
+## Builds
 
-## 📦 Key Dependencies
+EAS profiles are in `eas.json`:
 
-### Core Framework
+| Profile       | Use                         | API      |
+| ------------- | --------------------------- | -------- |
+| `development` | Dev client on the simulator | Mock     |
+| `preview`     | Internal test builds        | Mock     |
+| `production`  | Store builds                | Real API |
 
-- `expo`: ^54.0.30
-- `react`: ^19.1.0
-- `react-native`: ^0.81.5
-- `expo-router`: ^6.0.21
+```bash
+eas build --profile preview --platform ios
+```
 
-### State & Data
+## Privacy
 
-- `@tanstack/react-query`: ^5.90.16
-- `react-hook-form`: ^7.69.0
-- `zod`: ^4.2.1
-
-### UI & Styling
-
-- `nativewind`: ^4.2.1
-- `lucide-react-native`: ^0.562.0
-- `@expo-google-fonts/manrope`: ^0.4.2
-
-### Storage & Security
-
-- `expo-secure-store`: ^15.0.8
-- `@react-native-async-storage/async-storage`: ^2.2.0
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-
-- Create an issue in the repository
-- Check the Expo documentation
-- Review React Native troubleshooting guides
-
----
-
-**Built with ❤️ using Expo and React Native**
+The app collects only what it needs to work: your name, your email, and the groups and expenses you add. There's no analytics or tracking. The full policy is in `src/content/pages.ts`, and in the app under Profile → About.
