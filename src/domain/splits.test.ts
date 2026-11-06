@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkPayers, computeShares, mainPayer, SplitError } from "./splits";
+import { checkPayers, computeShares, evenValues, mainPayer, SplitError } from "./splits";
 
 const sum = (shares: { cents: number }[]) => shares.reduce((a, s) => a + s.cents, 0);
 
@@ -77,5 +77,22 @@ describe("checkPayers", () => {
         { userId: "tari", cents: 3000 },
       ]),
     ).toBe("tari");
+  });
+});
+
+describe("evenValues", () => {
+  const people = ["a", "b", "c"];
+
+  it("starts every type from values that already work", () => {
+    for (const type of ["exact", "percent", "shares"] as const) {
+      const values = evenValues(type, people, 1000);
+      expect(() => computeShares(1000, { type, members: people, values })).not.toThrow();
+    }
+  });
+
+  it("spreads the leftover cent and percentage point", () => {
+    expect(evenValues("exact", people, 1000)).toEqual({ a: 334, b: 333, c: 333 });
+    expect(evenValues("percent", people, 1000)).toEqual({ a: 3334, b: 3333, c: 3333 });
+    expect(evenValues("shares", people, 1000)).toEqual({ a: 1, b: 1, c: 1 });
   });
 });

@@ -36,6 +36,19 @@ export function checkPayers(total: Cents, payers: Share[]): Share[] {
   return list;
 }
 
+/**
+ * An even starting point for a split type, so switching type keeps the same people and
+ * fills in values that already add up: equal cents, equal percentages, one share each.
+ */
+export function evenValues(type: SplitType, members: string[], total: Cents): Record<string, number> {
+  if (type === "equal" || members.length === 0) return {};
+  const parts =
+    type === "shares"
+      ? members.map(() => 1)
+      : allocate(type === "percent" ? FULL_PERCENT : total, members.map(() => 1));
+  return Object.fromEntries(members.map((id, i) => [id, parts[i]]));
+}
+
 /** The person who paid the most, for one-line summaries like "Ada paid". */
 export const mainPayer = (payers: Share[]) => payers.reduce((a, b) => (b.cents > a.cents ? b : a)).userId;
 
