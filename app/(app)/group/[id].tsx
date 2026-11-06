@@ -1,12 +1,7 @@
 import { useAuth } from "@/src/contexts/AuthContext";
 import { byDay } from "@/src/domain/dates";
 import { formatMoney, type Cents } from "@/src/domain/money";
-import {
-  useDeleteGroup,
-  useGroupDetails,
-  useLeaveGroup,
-  useUpdateGroup,
-} from "@/src/services/group.service";
+import { useAddMembers, useDeleteGroup, useGroupDetails, useLeaveGroup, useUpdateGroup } from "@/src/services/group.service";
 import { useDeleteSettlement } from "@/src/services/settlement.service";
 import { useTheme } from "@/src/theme/theme";
 import type { Expense, GroupMember, Payment, Settlement } from "@/src/types";
@@ -20,17 +15,7 @@ import * as Linking from "expo-linking";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowRight, Ellipsis, HandCoins, Plus } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import {
-  ActionSheetIOS,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Share,
-  Text,
-  View,
-} from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type TimelineItem = { kind: "expense"; date: string; expense: Expense } | { kind: "settlement"; date: string; settlement: Settlement };
@@ -49,6 +34,7 @@ export default function GroupDetails() {
   const { data, isLoading, refetch } = useGroupDetails(id || "");
   const updateGroup = useUpdateGroup();
   const leaveGroup = useLeaveGroup();
+  const addMembers = useAddMembers();
   const deleteGroup = useDeleteGroup();
   const deleteSettlement = useDeleteSettlement();
 
@@ -81,21 +67,31 @@ export default function GroupDetails() {
     now,
   );
 
-  const settleWith = (paidTo: string, amountCents: Cents) => {
+  /** Opens settle up for a payment in the plan: yours to make, or someone's to you. */
+  const settle = (p: Payment) => {
     setShowBalances(false);
     router.push({
       pathname: "/(app)/settle",
-      params: { groupId: id, paidTo, amountCents: String(amountCents) },
+      params: { groupId: id, paidBy: p.from._id, paidTo: p.to._id, amountCents: String(p.cents) },
     });
   };
 
-  const fail = (title: string) => (error: unknown) =>
-    Alert.alert(title, error instanceof Error ? error.message : "Something went wrong");
+  const fail = (title: string) => (error: unknown) => Alert.alert(title, error instanceof Error ? error.message : "Something went wrong");
 
   const shareInvite = () =>
     Share.share({
       message: `Join "${group.name}" on Split the Cost: ${Linking.createURL(`join/${group.inviteCode}`)}`,
     });
+
+  const addPeople = () =>
+    Alert.prompt(
+      "Add people",
+      "Their email. Anyone without an account joins when they sign up.",
+      (email) => email?.trim() && addMembers.mutateAsync({ id: group._id, emails: [email.trim()] }).catch(fail("Couldn't add them")),
+      "plain-text",
+      "",
+      "email-address",
+    );
 
   const rename = () =>
     Alert.prompt(
@@ -128,6 +124,7 @@ export default function GroupDetails() {
 
   const openMenu = () => {
     const actions = [
+      { label: "Add people", run: addPeople },
       { label: "Share invite link", run: shareInvite },
       { label: "Rename group", run: rename },
       { label: "Leave group", run: leave, destructive: true },
@@ -298,7 +295,7 @@ export default function GroupDetails() {
         payments={suggestedPayments}
         me={me}
         currency={group.currency}
-        onPay={settleWith}
+        onSettle={settle}
         myPayments={settlements.filter((s) => s.paidBy._id === me || s.paidTo._id === me)}
         onUndo={undoPayment}
       />
@@ -312,7 +309,7 @@ function BalancesSheet({
   payments,
   me,
   currency,
-  onPay,
+  onSettle,
   myPayments,
   onUndo,
 }: {
@@ -321,7 +318,7 @@ function BalancesSheet({
   payments: Payment[];
   me?: string;
   currency: string;
-  onPay: (paidTo: string, cents: Cents) => void;
+  onSettle: (payment: Payment) => void;
   myPayments: Settlement[];
   onUndo: (settlementId: string) => void;
 }) {
@@ -344,8 +341,13 @@ function BalancesSheet({
         <Money cents={p.cents} currency={currency} className="text-base" />
       </View>
       {p.from._id === me && (
-        <PressableScale haptic onPress={() => onPay(p.to._id, p.cents)} className="bg-ink rounded-full px-4 py-2.5">
+        <PressableScale haptic onPress={() => onSettle(p)} className="bg-ink rounded-full px-4 py-2.5">
           <Text className="text-bg font-manropeBold">Pay</Text>
+        </PressableScale>
+      )}
+      {p.to._id === me && (
+        <PressableScale haptic onPress={() => onSettle(p)} className="bg-surface-muted rounded-full px-4 py-2.5">
+          <Text className="text-ink font-manropeBold">Got it</Text>
         </PressableScale>
       )}
     </View>
@@ -391,7 +393,8 @@ function BalancesSheet({
                       {s.paidBy._id === me ? `You paid ${s.paidTo.name.split(" ")[0]}` : `${s.paidBy.name.split(" ")[0]} paid you`}
                     </Text>
                     <Text className="text-ink-muted font-manrope text-[13px]">
-                      {formatMoney(s.amountCents, currency)} · {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {formatMoney(s.amountCents, currency)} ·{" "}
+                      {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </Text>
                   </View>
                   <Pressable onPress={() => onUndo(s._id)} hitSlop={10}>
